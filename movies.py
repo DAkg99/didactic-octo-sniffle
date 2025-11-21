@@ -18,7 +18,21 @@ def load_showtimes(path: str) -> list:
     return list(json.load(open(path+"showtimes.json")))
 
 
-def list_showtimes(path: str, request_type: str, request: str):
+def list_showtimes(path: str, request_type: str, search_for = None):
+    """Lists showtimes, with optional search"""
+    showtimes = load_showtimes(path)
+    if request_type == "all":
+        return showtimes
+    requested_showtimes = []
+    for item in showtimes:
+        if item[request_type] == search_for:
+            requested_showtimes.append(item)
+    if not requested_showtimes:
+        return ["No showings found."]
+    else:
+        return requested_showtimes
+    
+def schedule_showtime(showtime_data: dict) -> dict:
     showtimes = load_showtimes(path)
     if request_type == "all":
         return showtimes
@@ -27,12 +41,9 @@ def list_showtimes(path: str, request_type: str, request: str):
         if item[request_type] == request:
             requested_showtimes.append(item)
     if not requested_showtimes:
-        return "No showings found."
+        return ["No showings found."]
     else:
         return requested_showtimes
-    
-def schedule_showtime(showtimes: list, showtime_data: dict) -> dict:
-    pass
     
 # def list_showtimes(showtimes: list, movie_id: str | None = None, date: str| None = None) -> list: ...
 def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ...
