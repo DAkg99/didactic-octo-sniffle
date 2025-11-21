@@ -1,6 +1,6 @@
 import movies
-# import seating
-# import bookings
+import seating
+import bookings
 # import storage
 # import reports
 
@@ -27,9 +27,11 @@ schedule_menu = {
         "3": {"value": "all", "description": "All movies"}
         }
     }
+    
+booking_menu
 
    
-# Functions for menu navigation and providing user with information
+# Menu Functions
 def print_actions(possible_actions: dict) -> None:
     """Prints possible actions user can take."""
     for key, value in possible_actions.items():
@@ -61,17 +63,21 @@ while True:
         user_action = do_menu(schedule_menu)
         if user_action == "back":
             continue
-        elif user_action == "all":
-            showtimes = movies.list_showtimes(data_path,user_action)
-        elif user_action == ("date" or "name"):
-            showtimes = movies.list_showtimes(data_path,user_action,input(f"Enter {user_action}: "))
-        for showtime in showtimes:
+        if user_action == "all":
+            search_for = None
+        else:
+            search_for = input(f"Enter {user_action}: ")
+        for showtime in movies.list_showtimes(data_path,user_action,search_for):
             print(showtime)
         input("\n[Enter to continue] ")
         continue
         
     elif user_action == "booking":
-        pass
+        user_action = do_menu(schedule_menu)
+        if user_action == "back":
+            continue
+        continue
+        
     elif user_action == "unbooking":
         pass
     elif user_action == "admin":

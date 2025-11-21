@@ -18,7 +18,7 @@ def load_showtimes(path: str) -> list:
     return list(json.load(open(path+"showtimes.json")))
 
 
-def list_showtimes(path: str, request_type: str, search_for = None):
+def list_showtimes(path: str, request_type: str, search_for):
     """Lists showtimes, with optional search"""
     showtimes = load_showtimes(path)
     if request_type == "all":
