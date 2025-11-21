@@ -13,10 +13,14 @@ def add_movie(movies: list, movie_data: dict) -> list:
     movies.append(movie_data)
     return movies
     
+    
 def load_showtimes(path: str) -> list:
     """Loads showtime database file"""
     return list(json.load(open(path+"showtimes.json")))
-
+    
+def save_showtimes(path: str, showtimes: list) -> None:
+    """Saves showtimes to database file"""
+    json.dump(showtimes, open(path+"showtimes.json","w"))
 
 def list_showtimes(path: str, request_type: str, search_for):
     """Lists showtimes, with optional search"""
@@ -29,21 +33,20 @@ def list_showtimes(path: str, request_type: str, search_for):
             requested_showtimes.append(item)
     if not requested_showtimes:
         return ["No showings found."]
-    else:
-        return requested_showtimes
+    requested_showtimes
     
-def schedule_showtime(showtime_data: dict) -> dict:
-    showtimes = load_showtimes(path)
-    if request_type == "all":
-        return showtimes
-    requested_showtimes = []
-    for item in showtimes:
-        if item[request_type] == request:
-            requested_showtimes.append(item)
-    if not requested_showtimes:
-        return ["No showings found."]
-    else:
-        return requested_showtimes
+def schedule_showtime(showtime_data: dict) -> dict: pass
+    # showtimes = load_showtimes(path)
+    # if request_type == "all":
+        # return showtimes
+    # requested_showtimes = []
+    # for item in showtimes:
+        # if item[request_type] == request:
+            # requested_showtimes.append(item)
+    # if not requested_showtimes:
+        # return ["No showings found."]
+    # else:
+        # return requested_showtimes
     
 # def list_showtimes(showtimes: list, movie_id: str | None = None, date: str| None = None) -> list: ...
 def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ...

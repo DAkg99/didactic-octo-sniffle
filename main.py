@@ -4,6 +4,8 @@ import bookings
 # import storage
 # import reports
 
+# To-do: Prettier print for viewing schedule. Verify date formats (storage.py?).
+
 # Database path
 data_path = "./data/"
 
@@ -12,7 +14,7 @@ main_menu = {
     "prompt": "What would you like to do?",
     "actions": {
         "0": {"value": "admins", "description": "Staff actions"},
-        "1": {"value": "schedule", "description": "View Showtime Schedule"},
+        "1": {"value": "schedule", "description": "View scheduled showtimes"},
         "2": {"value": "bookings", "description": "Book viewing"},
         "3": {"value": "unbook", "description": "Cancel booking"}
         }
@@ -28,10 +30,9 @@ schedule_menu = {
         }
     }
     
-booking_menu
 
    
-# Menu Functions
+# Menu Display Functions
 def print_actions(possible_actions: dict) -> None:
     """Prints possible actions user can take."""
     for key, value in possible_actions.items():
@@ -49,39 +50,44 @@ def do_menu(menu_data: dict) -> str:
     print("\n"+menu_data["prompt"])
     print_actions(menu_data["actions"])
     return make_user_pick_action(menu_data["actions"])
+  
+# Menu Logic Functions  
+def schedule_logic(input_action):
+    match input_action: 
+        case "back":
+            return
+        case "all":
+            search_for = None
+        case "date" | "time":
+            print("Date format: YYYY-MM-DD\n" * (input_action == "date"), end="")
+            search_for = input(f"Enter {input_action}: ")
+        case _:
+            raise ValueError("Not a recognised action.")
+    for showtime in movies.list_showtimes(data_path,input_action,search_for):
+        print(showtime)
+    input("\n[Enter to continue] ")
     
+
     
 # Run stuff
 while True:
     user_action = do_menu(main_menu)
-    
-    if user_action == "invalid":
-        print("Invalid selection.")
-        continue
-        
-    elif user_action == "schedule":
-        user_action = do_menu(schedule_menu)
-        if user_action == "back":
+    match user_action: 
+        case "invalid":
+            print("Invalid selection.")
             continue
-        if user_action == "all":
-            search_for = None
-        else:
-            search_for = input(f"Enter {user_action}: ")
-        for showtime in movies.list_showtimes(data_path,user_action,search_for):
-            print(showtime)
-        input("\n[Enter to continue] ")
-        continue
-        
-    elif user_action == "booking":
-        user_action = do_menu(schedule_menu)
-        if user_action == "back":
+        case "schedule":
+            user_action = do_menu(schedule_menu)
+            schedule_logic()
             continue
-        continue
-        
-    elif user_action == "unbooking":
-        pass
-    elif user_action == "admin":
-        pass
-    else:
-        pass
+        case "booking":
+            #bookings.create_booking()
+            continue
+        case "unbooking":
+            #bookings.cancel_booking()
+            pass
+        case "admin":
+            pass
+        case _:
+            raise ValueError("Not a recognised action.")
             
