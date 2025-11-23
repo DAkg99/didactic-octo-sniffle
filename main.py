@@ -4,7 +4,15 @@ import bookings
 # import storage
 # import reports
 
-# To-do: Prettier print for viewing schedule. Verify date formats (storage.py?).
+# To-do: 
+# All the stuff that isn't done yet.
+# Prettier print for viewing schedule. Also don't print past viewings.
+# Date verification (valid format? in the future?) wherever applicable e.g. when user views schedule by inputting date.
+# Movie name verification wherever applicable e.g. when user views schedule by inputting name.
+# Import sys to clear the terminal between menu navigation
+# Import datetime to get current date for date verification and viewing print.
+# Add duration/hall verification to prevent overlapping screenings (probably dont actually implement this)
+
 
 # Database path
 data_path = "./data/"
