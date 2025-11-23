@@ -1,7 +1,7 @@
 import json
 
 def load_movies(path: str) -> list:
-    """Loads movie database file"""
+    """Returns movie database as list"""
     return list(json.load(open(path+"movies.json")))
 
 def save_movies(path: str, movies: list) -> None:
@@ -25,7 +25,7 @@ def save_showtimes(path: str, showtimes: list) -> None:
     """Saves showtimes to database file"""
     json.dump(showtimes, open(path+"showtimes.json","w"))
 
-def list_showtimes(path: str, request_type: str, search_for):
+def list_showtimes(path: str, request_type: str, search_for = None):
     """Lists showtimes, with optional search"""
     showtimes = load_showtimes(path)
     if request_type == "all":
@@ -36,7 +36,7 @@ def list_showtimes(path: str, request_type: str, search_for):
             requested_showtimes.append(item)
     if not requested_showtimes:
         return ["No showings found."]
-    requested_showtimes
+    return requested_showtimes
     
 def schedule_showtime(showtime_data: dict) -> dict: pass # Todo
 
