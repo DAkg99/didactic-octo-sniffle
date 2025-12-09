@@ -1,13 +1,23 @@
+import os
+from dataclasses import dataclass, field
+from typing import ClassVar
+
 import movies
 import seating
 import bookings
+
 # import storage
 # import reports
 
-# To-do: 
-# All the stuff that isn't done yet.
+# To-do:
+# All the stuff that isn't done yet (shown through comments throughout. also check pdf for overview, outcomes, func. reqs.)
+# Hide (?) and/or password-protect the admin menu.
+# Admins should be able to cancel bookings, i guess
+# Don't forget to ask for full name and email during booking. Important for viewing current bookings & refunds.
+# Probably ask for age and other stuff to implement discounts.
 # Prettier print for viewing schedule. Also don't print past viewings.
 # Date verification (valid format? in the future?) wherever applicable e.g. when user views schedule by inputting date.
+# ^ Time verification too
 # Movie name verification wherever applicable e.g. when user views schedule by inputting name.
 # Import sys to clear the terminal between menu navigation
 # Import datetime to get current date for date verification and viewing print.
@@ -16,100 +26,101 @@ import bookings
 
 # Database path
 data_path = "./data/"
+# Backup path
+backup_path = "./backup/"
+# Create directories if absent
+os.makedirs(backup_path, exist_ok=True)
+os.makedirs(data_path, exist_ok=True)
 
-# Menu definitions
-# "": {"value": "", "description": ""},
-main_menu_data = { 
-    "prompt": "What would you like to do?",
-    "actions": {
-        "0": {"value": "admin", "description": "[Staff Access]"},
-        "1": {"value": "schedule", "description": "View scheduled showtimes"},
-        "2": {"value": "book", "description": "Book a ticket"},
-        "3": {"value": "see_bookings", "description": "View current bookings"},
-        "4": {"value": "unbook", "description": "Cancel booking"}
-        }
-    }
-    
-schedule_menu_data = {
-    "prompt": "Which showtimes would you like to see?",
-    "actions": {
-        "0": {"value": "back", "description": "[Go back]"},
-        "1": {"value": "name", "description": "Showtimes of a specific movie"},
-        "2": {"value": "date", "description": "All movies on a specific day"},
-        "3": {"value": "all", "description": "All movies"}
-        }
-    }
 
-admin_main_data = {
-    "prompt": "Select sub-menu:",
-    "actions": {
-        "0": {"value": "back", "description": "[Exit Admin Mode]"},
-        "1": {"value": "movies", "description": "Manage movies & showtimes"}, # Another menu
-        "2": {"value": "reports", "description": "Manage analytics"}, # Another menu
-        "3": {"value": "backups", "description": "Manage database backups"} # Another menu
-        }
-    }
+@dataclass
+class Menu:
+    prompt_for_number: ClassVar[str] = "Enter a number: "
+    number_selection_error: ClassVar[str] = "Invalid selection. Enter to continue."
+    prompt: str
+    options: list[dict[str, str]]
 
-admin_movies_data = {
-    "prompt": "Manage movies and showtimes:",
-    "actions": {
-        "0": {"value": "back", "description": "[Go back]"},
-        "1": {"value": "new_movie", "description": "Add a new movie"}, # Add to movie list. Ask if new schedule should be made.
-        "2": {"value": "rem_movie", "description": "Retire a movie"}, # Remove from movie list. Should also remove it from schedule.
-        "3": {"value": "new_showing", "description": "Add new showing to schedule"},
-        "4": {"value": "rem_showing", "description": "Remove a showing from schedule"}
-        }
-    }
+    def select(self, prompt_override=""):
+        """Displays menu until user makes a valid choice."""
+        while True:
+            self._print_menu(prompt_override)
+            choice = self._make_user_choose()
+            if choice == -1:
+                input(Menu.number_selection_error)
+                continue
+            return choice
 
-admin_reports_data = {
-    "prompt": "View or export analytics:",
-    "actions": {
-        "0": {"value": "back", "description": "[Go back]"},
-        "1": {"value": "export", "description": "Export all analytics to file"}, # reports.export_report()
-        "2": {"value": "occupancy", "description": "View occupancy statistics"}, # reports.occupancy_report()
-        "3": {"value": "revenue", "description": "View revenue summary"}, # reports.revenue_summary()
-        "4": {"value": "top_movies", "description": "View the most popular 5 movies"} # reports.top_movies()
-        }
-    }
+    def _print_menu(self, prompt_override):
+        """Prints instance's prompt & options. Prompt can be overridden."""
+        print((self.prompt * bool(not prompt_override)) +
+              (str(prompt_override) * bool(prompt_override)))  # Branchless conditional
+        for i, option in enumerate(self.options):
+            print(f"{i}: {next(iter((option.values())))}")  # Make values iterable -> Iterate to next
 
-admin_backups_data = {
-    "prompt": "Manage backups:",
-    "actions": {
-        "0": {"value": "back", "description": "[Go back]"},
-        "1": {"value": "save_backup", "description": "Create a manual backup of data"} # storage.backup_state()
-        # "2": {"value": "", "description": ""},
-        # "3": {"value": "", "description": ""},
-        # "4": {"value": "", "description": ""} 
-        }
-    }
-        
-   
-### Menu Display Functions
-def show_menu(menu_data: dict) -> str:
-    """Lists possible actions with an optional starting prompt. User must pick an action."""
-    print("\n"+menu_data["prompt"])
-    print_actions(menu_data["actions"])
-    return make_user_pick_action(menu_data["actions"])
-    
-def print_actions(possible_actions: dict) -> None:
-    """Prints possible actions user can take."""
-    for key, value in possible_actions.items():
-        print(key,value["description"])
-        
-def make_user_pick_action(possible_actions: dict) -> str:
-    """Prompts user to pick an action, returns 'invalid' if not valid."""
-    result = possible_actions.get(input("\nEnter a number: "),"invalid")
-    if result == "invalid":
-        return result
-    return result["value"]
+    def _make_user_choose(self):
+        """Prompts user to select an option & returns it. Returns -1 if invalid selection."""
+        try:
+            return next(iter(self.options[int(input(Menu.prompt_for_number))].keys()))  # Return chosen key
+        except (NameError, TypeError, IndexError):
+            return -1
 
-  
+
+# Initialise all menus
+main_menu = Menu(
+    "What would you like to do?", [
+        {"admin": "[Staff Access]"},
+        {"schedule": "View scheduled showtimes"},  # Submenu
+        {"book": "Book a ticket"},
+        {"see_bookings": "View current bookings"},
+        {"unbook": "Cancel booking"}])
+
+schedule_menu = Menu(
+    "How would you like to view the schedule?", [
+        {"back": "[Go back]"},
+        {"name": "Showtimes of a specific movie"},
+        {"date": "All movies on a specific day"},
+        {"all": "All movies"}])
+
+admin_menu = Menu(
+    "What would you like to manage?", [
+        {"back": "[Exit Admin Mode]"},
+        {"movies": "Manage movies & showtimes"},  # Submenu
+        {"reports": "Manage analytics"},  # Submenu
+        {"backups": "Manage database backups"}])  # Submenu
+
+admin_movies_menu = Menu(
+    "Movie options:", [
+        {"back": "[Go back]"},
+        {"new_movie": "Add a new movie"},  # Add to movie list. Ask if new schedule should be made.
+        {"rem_movie": "Retire a movie"},  # Remove from movie list. Should also remove it from schedule.
+        {"new_showing": "Add new showing to schedule"},
+        {"rem_showing": "Remove a showing from schedule"}])
+
+admin_reports_menu = Menu(
+    "Analytic options:", [
+        {"back": "[Go back]"},
+        {"export": "Export all analytics to file"},  # reports.export_report()
+        {"occupancy": "View occupancy statistics"},  # reports.occupancy_report()
+        {"revenue": "View revenue summary"},  # reports.revenue_summary()
+        {"top_movies": "View the most popular 5 movies"}])  # reports.top_movies()
+
+admin_backups_menu = Menu(
+    "Backup options:", [
+        {"back": "[Go back]"},
+        {"save_backup": "Create a manual backup of data"}])  # storage.backup_state()
+
+
+# "2": "": ""},
+# "3": "": ""},
+# "4": "": ""}
+
+
 ### Menus
 def schedule_menu():
     """Menu to view and search the showtime schedule"""
     while True:
-        menu_action = show_menu(schedule_menu_data)
-        match menu_action: 
+        menu_action = main_menu.select()
+        match menu_action:
             case "back":
                 return
             case "all":
@@ -122,6 +133,7 @@ def schedule_menu():
                 input("\n[Enter to continue] ")
             case _:
                 print("Not a recognised action.")
+
 
 def admin_menu():
     """Admin main menu (directory of sub-menus)"""
@@ -138,7 +150,8 @@ def admin_menu():
                 admin_backups_menu()
             case _:
                 print("Invalid selection.")
-                
+
+
 def admin_movies_menu():
     """Admin menu to manage movies and showings"""
     while True:
@@ -161,22 +174,23 @@ def admin_movies_menu():
                 print("Movie has been retired")
                 input("[Enter to continue] ")
             case "new_showing":
-                # movies.schedule_showtime(...) 
+                # movies.schedule_showtime(...)
                 print("[Placeholder]")
-                movies.list_showtimes(data_path,"all",None)
-                input("Enter showtime to add: ") # This will require a series of inputs
+                movies.list_showtimes(data_path, "all", None)
+                input("Enter showtime to add: ")  # This will require a series of inputs
                 print("New showtime has been added to schedule")
                 input("[Enter to continue] ")
             case "rem_showing":
                 # movies.update_showtime
                 print("[Placeholder]")
-                movies.list_showtimes(data_path,"all",None)
-                input("Enter showtime to remove: ") # This will require a series of inputs
+                movies.list_showtimes(data_path, "all", None)
+                input("Enter showtime to remove: ")  # This will require a series of inputs
                 print("Showtime has been removed from schedule")
                 input("[Enter to continue] ")
             case _:
                 print("Not a recognised action.")
-           
+
+
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
     while True:
@@ -206,7 +220,8 @@ def admin_reports_menu():
                 input("[Enter to continue] ")
             case _:
                 print("Not a recognised action.")
-     
+
+
 def admin_backups_menu():
     """Admin menu to export backups"""
     while True:
@@ -221,12 +236,12 @@ def admin_backups_menu():
             case _:
                 print("Not a recognised action.")
         input("[Enter to continue] ")
-        
-        
+
+
 # Main menu
 while True:
     user_action = show_menu(main_menu_data)
-    match user_action: 
+    match user_action:
         case "schedule":
             schedule_menu()
         case "book":
