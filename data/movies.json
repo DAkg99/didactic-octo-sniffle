@@ -1,22 +1,22 @@
 [
 	{
-		"name":"Hello Kitty",
+		"title":"Hello Kitty",
 		"genre":"horror",
-		"duration":"1H45M",
-		"rating":"4.5"
+		"duration":"105",
+		"rating":"4.5",
 		"description":"Dumb cat does things."
 	},
 	{
-		"name":"Hello Kitty 2",
+		"title":"Hello Kitty 2",
 		"genre":["horror", "comedy"],
-		"duration":"2H15M",
+		"duration":"138",
 		"rating":"2",
 		"description":"Dumb cat does things worse."
 	},
 	{
-		"name":"Death",
+		"title":"Death",
 		"genre":"action",
-		"duration":"0H12M",
+		"duration":"1",
 		"rating":"5",
 		"description":"Movie that kills you upon viewing."
 	}

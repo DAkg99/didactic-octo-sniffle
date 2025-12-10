@@ -1,13 +1,20 @@
+import datetime
 import os
-# import datetime as dt
+import datetime as dt
 from dataclasses import dataclass
 from typing import ClassVar
 
 import movies
+import seating
+import storage
+
 # import seating
 # import bookings
 # import storage
 # import reports
+
+# Done:
+# Schedule viewer
 
 # To-do:
 # All the stuff that isn't done yet (shown through comments throughout. also check pdf for overview, outcomes, func. reqs.)
@@ -23,6 +30,9 @@ import movies
 # Import datetime to get current date for date verification and viewing print.
 # Add duration/hall verification to prevent overlapping screenings (probably don't actually implement this)
 
+# Extra To-dos:
+# Make schedule viewer send user directly to new booking, with data of requested showtime
+
 
 # Database path
 data_path = "./data/"
@@ -33,6 +43,7 @@ os.makedirs(backup_path, exist_ok=True)
 os.makedirs(data_path, exist_ok=True)
 
 
+
 @dataclass
 class MenuSelector:
     prompt_for_number: ClassVar[str] = "Enter a number: "
@@ -40,29 +51,29 @@ class MenuSelector:
     prompt: str
     options: list[dict[str, str]]
 
-    def run(self, prompt_override=""):
+    def run(self, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
         while True:
             self._print_menu(prompt_override)
             choice = self._make_user_choose()
-            if choice == -1:
+            if not choice:
                 input(MenuSelector.number_selection_error)
-                continue
-            return choice
+            break
+        return choice
 
-    def _print_menu(self, prompt_override):
+    def _print_menu(self, prompt_override: str):
         """Prints instance's prompt & options. Prompt can be overridden."""
         print((self.prompt * bool(not prompt_override)) +
               (str(prompt_override) * bool(prompt_override)))  # Branchless conditional
         for i, option in enumerate(self.options):
             print(f"{i}: {next(iter((option.values())))}")  # Make values iterable -> Iterate to next
 
-    def _make_user_choose(self):
-        """Prompts user to select an option & returns it. Returns -1 if invalid selection."""
+    def _make_user_choose(self) -> str | None:
+        """Prompts user to select an option & returns it. Returns None when invalid selection."""
         try:
             return next(iter(self.options[int(input(MenuSelector.prompt_for_number))].keys()))  # Return chosen key
         except (NameError, TypeError, IndexError):
-            return -1
+            return None
 
 
 # Initialise menu selection objects
@@ -71,15 +82,21 @@ main_selector = MenuSelector(
         {"admin": "[Staff Access]"},
         {"schedule": "View scheduled showtimes"},  # Submenu
         {"book": "Book a ticket"},
-        {"see_bookings": "View current bookings"},
-        {"unbook": "Cancel booking"}])
+        {"imdb": "Read more about available movies"}])
 
 schedule_selector = MenuSelector(
     "How would you like to view the schedule?", [
         {"back": "[Go back]"},
-        {"name": "Showtimes of a specific movie"},
+        {"title": "Showtimes of a specific movie"},
         {"date": "All movies on a specific day"},
         {"all": "All movies"}])
+
+book_selector = MenuSelector(
+    "Booking options:", [
+        {"back": "[Go back]"},
+        {"new_book": "Make a new booking"},
+        {"view_book": "View current bookings"},
+        {"remove_book": "Cancel a booking"}])
 
 admin_selector = MenuSelector(
     "What would you like to manage?", [
@@ -115,25 +132,39 @@ admin_backups_selector = MenuSelector(
 
 ### Menus
 def schedule_menu():
-    """Menu to view and search the showtime schedule"""
-    menu_action = schedule_selector.run() # TO-DO: Remove this hard-coded behavior.
-    match menu_action:
-        case "back":
-            return
-        case "all":
-            [print(showing) for showing in movies.list_showtimes(data_path, menu_action)]
-            input("\n[Enter to continue] ")
-        case "date" | "name":
-            print("Date format: YYYY-MM-DD\n" * (menu_action == "date"), end="")
-            search_for = input(f"Enter {menu_action}: ")
-            [print(showing) for showing in movies.list_showtimes(data_path, menu_action, search_for)]
-            input("\n[Enter to continue] ")
-        case _:
-            raise NotImplemented
+    """Make user search through the schedule"""
+    while True:
+        match schedule_selector.run():
+            case "back":
+                return
+            case "title":
+                schedule_search_title()
+            case "date":
+                schedule_search_date()
+            case "all":
+                schedule_search_all()
+            case _:
+                raise NotImplemented
 
+def book_menu():
+    """Get user to view and manage bookings"""
+    while True:
+        match book_selector.run():
+            case "back":
+                return
+            case "new_book":
+                book_new()
+            case "view_book":
+                # Placeholder
+                print("TO DO")
+            case "remove_book":
+                # Placeholder
+                print("TO DO")
+            case _:
+                raise NotImplemented
 
 def admin_menu():
-    """Admin main menu (directory of sub-menus)"""
+    """Admin main menu"""
     while True:
         match admin_selector.run():
             case "back":
@@ -146,7 +177,6 @@ def admin_menu():
                 admin_backups_menu()
             case _:
                 raise NotImplemented
-
 
 def admin_movies_menu():
     """Admin menu to manage movies and showings"""
@@ -171,20 +201,19 @@ def admin_movies_menu():
             case "new_showing":
                 # movies.schedule_showtime(...)
                 print("[Placeholder]")
-                movies.list_showtimes(data_path, "all", None)
+                movies.list_showtimes(data_path, None)
                 input("Enter showtime to add: ")  # This will require a series of inputs
                 print("New showtime has been added to schedule")
                 input("[Enter to continue] ")
             case "rem_showing":
                 # movies.update_showtime
                 print("[Placeholder]")
-                movies.list_showtimes(data_path, "all", None)
+                movies.list_showtimes(data_path, None)
                 input("Enter showtime to remove: ")  # This will require a series of inputs
                 print("Showtime has been removed from schedule")
                 input("[Enter to continue] ")
             case _:
                 raise NotImplemented
-
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
@@ -210,11 +239,10 @@ def admin_reports_menu():
             case "top_movies":
                 # reports.top_movies(...)
                 print("[Placeholder]")
-                print(f"Most popular movie is {movies.load_movies(data_path)[0]}")
+                print(f"Most popular movie is")
                 input("[Enter to continue] ")
             case _:
                 raise NotImplemented
-
 
 def admin_backups_menu():
     """Admin menu to export backups"""
@@ -230,6 +258,35 @@ def admin_backups_menu():
                 raise NotImplemented
         input("[Enter to continue] ")
 
+# General Helpers---------
+def print_list(my_list):
+    """Prints list and stops"""
+    [print(item) for item in my_list]
+    input("[Enter to continue] ")
+
+# Schedule Functions---------
+def schedule_search_title():
+    if search_for := input(f"Enter movie title: "):
+        print_list(movies.list_showtimes(data_path, search_for))
+
+def schedule_search_date():
+    if search_for := storage.generate_datetime_from_input():
+        print_list(movies.list_showtimes(data_path, search_for))
+
+def schedule_search_all():
+    print_list(movies.list_showtimes(data_path))
+
+# Book Functions---------
+def book_new(): # Incomplete
+    current_schedule = movies.list_showtimes(data_path)
+    print("Current schedule: ")
+    for index, item in enumerate(current_schedule,1):
+        print(f"{index}:   {item["name"]}")
+    seating.render_seat_map()
+
+# Movie Viewing Functions---------
+def movie_detail_viewer():
+    pass
 
 # Main menu
 while True:
@@ -239,13 +296,8 @@ while True:
         case "schedule":
             schedule_menu()
         case "book":
-            # bookings.create_booking()
-            input("To do")
-        case "see_bookings":
-            # list_customer_bookings()
-            input("To do")
-        case "unbook":
-            # bookings.cancel_booking()
-            input("To do")
+            book_menu()
+        case "imdb":
+            movie_detail_viewer()
         case _:
             raise NotImplemented
