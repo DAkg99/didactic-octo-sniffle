@@ -1,14 +1,11 @@
 import datetime as dt
-
-def generate_datetime_from_input(input_statement_override: str = "") -> dt.datetime | None:
-    """Asks user for YYYY-MM-DD. Returns None is users fails."""
+def user_input_verified_date(prompt_override: str = "") -> dt.datetime | None:
+    """Repeatedly prompts user for valid string until it's done (returns datetime) or user cancels (returns None)"""
+    # Branchless conditional to determine prompt string, followed by loop to get valid answer from user
+    prompt = (f"Enter date (YYYY-MM-DD): " * bool(not prompt_override)  + prompt_override * bool(prompt_override))
     while True:
-        user_string = input((f"Enter date (YYYY-MM-DD): " * bool(not input_statement_override)) +
-                  (input_statement_override * bool(input_statement_override))) # Branchless conditional
         try:
-            int_data = [int(datum) for datum in user_string.strip().split("-")]
-            return dt.datetime(int_data[0], int_data[1], int_data[2])
-        except (IndexError, ValueError, TypeError, NameError, OverflowError):
-            if input("Invalid date. Press enter to try again, or 'cancel' to go back: ").lower().strip() == "cancel":
+            return dt.datetime.strptime(input(prompt), "%Y-%m-%d")
+        except ValueError:
+            if input("Invalid date. Enter to try again, 'q' to cancel: ").strip().lower() == "q":
                 return None
-            continue

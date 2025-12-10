@@ -6,32 +6,26 @@ from typing import ClassVar
 import movies
 import seating
 import storage
-
 # import seating
 # import bookings
 # import storage
 # import reports
 
 # Done:
-# Schedule viewer
+# Main: Schedule viewer
+# Main: Movie details
 
 # To-do:
-# All the stuff that isn't done yet (shown through comments throughout. also check pdf for overview, outcomes, func. reqs.)
-# Hide (?) and/or password-protect the admin menu.
-# Admins should be able to cancel bookings, I guess
-# Don't forget to ask for full name and email during booking. Important for viewing current bookings & refunds.
-# Probably ask for age and other stuff to implement discounts.
-# Prettier print for viewing schedule. Also don't print past viewings.
-# Date verification (valid format? in the future?) wherever applicable e.g. when user views schedule by inputting date.
-# ^ Time verification too
-# Movie name verification wherever applicable e.g. when user views schedule by inputting name.
-# Import sys to clear the terminal between menu navigation
-# Import datetime to get current date for date verification and viewing print.
-# Add duration/hall verification to prevent overlapping screenings (probably don't actually implement this)
+# All unimplemented main features
+# Schedule viewer pretty print
+# Admin menu protection
+# Admin booking cancellation
 
 # Extra To-dos:
 # Make schedule viewer send user directly to new booking, with data of requested showtime
-
+# Colored terminal
+# Clear terminal between prompts
+# Prevent overlapping screenings (lol)
 
 # Database path
 data_path = "./data/"
@@ -182,10 +176,7 @@ def movie_detail_menu():
         if (user_choice := movie_view_selector.run()) == "back":
             return
         user_movie = cached_movies[int(user_choice) - 1]
-        movie_prettyprint(user_movie)
-        
-
-
+        movie_pretty_print(user_movie)
 
 def admin_menu():
     """Admin main menu"""
@@ -282,6 +273,7 @@ def admin_backups_menu():
                 raise NotImplemented
         pause_confirm()
 
+
 # General Helpers---------
 def pause_confirm():
     input("[Enter to continue] ")
@@ -291,13 +283,13 @@ def print_list(my_list):
     [print(item) for item in my_list]
     pause_confirm()
 
-# Schedule Functions---------
+# Schedule Search Functions---------
 def schedule_search_title():
     if search_for := input(f"Enter movie title: "):
         print_list(movies.list_showtimes(data_path, search_for))
 
 def schedule_search_date():
-    if search_for := storage.generate_datetime_from_input():
+    if search_for := storage.user_input_verified_date():
         print_list(movies.list_showtimes(data_path, search_for))
 
 def schedule_search_all():
@@ -312,18 +304,14 @@ def book_new(): # Incomplete
     seating.render_seat_map()
 
 # Movie Details Functions---------
-def movie_prettyprint(movie: movies.Movie):
+def movie_pretty_print(movie: movies.Movie):
     print(f"Title: {movie.title}\n"
           f"Genre: {', '.join(list(map(str,movie.genre))).capitalize()}\n"
           f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)+"M"}\n"
           f"Rating: {movie.rating:.2f}/5\n"
           f"Description: {movie.description}")
     pause_confirm()
-#     genre: list[str]
-#     duration: dt.timedelta
-#     rating: float
-#     description: str
-#     showtimes: list[dt.datetime] | None = None
+
 
 # Main menu
 while True:
