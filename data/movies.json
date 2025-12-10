@@ -1,7 +1,7 @@
 [
 	{
 		"title":"Hello Kitty",
-		"genre":"horror",
+		"genre":["horror"],
 		"duration":"105",
 		"rating":"4.5",
 		"description":"Dumb cat does things."
@@ -15,7 +15,7 @@
 	},
 	{
 		"title":"Death",
-		"genre":"action",
+		"genre":["action"],
 		"duration":"1",
 		"rating":"5",
 		"description":"Movie that kills you upon viewing."

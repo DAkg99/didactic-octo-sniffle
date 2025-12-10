@@ -1,4 +1,3 @@
-import datetime
 import os
 import datetime as dt
 from dataclasses import dataclass
@@ -51,6 +50,16 @@ class MenuSelector:
     prompt: str
     options: list[dict[str, str]]
 
+    @classmethod
+    def dynamic_constructor_keyless(cls, prompt: str, raw_options: list, add_back_option: bool = True):
+        """New instance. Options are keyed as ints rather than strs except "back" when automatically added."""
+        options = []
+        if add_back_option:
+            options.append({"back": "[Go back]"})
+        for index, option in enumerate(raw_options, bool(add_back_option)):
+            options.append({str(index): option})
+        return cls(prompt,options)
+
     def run(self, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
         while True:
@@ -79,10 +88,10 @@ class MenuSelector:
 # Initialise menu selection objects
 main_selector = MenuSelector(
     "What would you like to do?", [
-        {"admin": "[Staff Access]"},
-        {"schedule": "View scheduled showtimes"},  # Submenu
-        {"book": "Book a ticket"},
-        {"imdb": "Read more about available movies"}])
+        {"admin": "[Staff Access]"},                     # Submenu
+        {"schedule": "View scheduled showtimes"},        # Submenu
+        {"book": "Book a ticket"},                       # Submenu
+        {"imdb": "Read more about available movies"}])   # Submenu
 
 schedule_selector = MenuSelector(
     "How would you like to view the schedule?", [
@@ -102,7 +111,7 @@ admin_selector = MenuSelector(
     "What would you like to manage?", [
         {"back": "[Exit Admin Mode]"},
         {"movies": "Manage movies & showtimes"},  # Submenu
-        {"reports": "Manage analytics"},  # Submenu
+        {"reports": "Manage analytics"},          # Submenu
         {"backups": "Manage database backups"}])  # Submenu
 
 admin_movies_selector = MenuSelector(
@@ -128,6 +137,11 @@ admin_backups_selector = MenuSelector(
         #{"": ""},
         #{"": ""},
         #{"": ""}])
+
+# Initialise menu selection objects which can't be hardcoded.
+movie_view_selector = MenuSelector.dynamic_constructor_keyless(
+    "Select a movie to learn more about it:",
+    cached_movies := [movie for movie in movies.load_movies(data_path)])
 
 
 ### Menus
@@ -163,6 +177,16 @@ def book_menu():
             case _:
                 raise NotImplemented
 
+def movie_detail_menu():
+    while True:
+        if (user_choice := movie_view_selector.run()) == "back":
+            return
+        user_movie = cached_movies[int(user_choice) - 1]
+        movie_prettyprint(user_movie)
+        
+
+
+
 def admin_menu():
     """Admin main menu"""
     while True:
@@ -190,28 +214,28 @@ def admin_movies_menu():
                 input("Enter movie to add: ")
                 input("Schedule viewings right away? (y/n) ")
                 print("Movie has been added")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "rem_movie":
                 # movies.remove_movie(...)
                 print("[Placeholder]")
                 print("Scheduled viewings for this movie will also be removed")
                 input("Enter movie to retire: ")
                 print("Movie has been retired")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "new_showing":
                 # movies.schedule_showtime(...)
                 print("[Placeholder]")
                 movies.list_showtimes(data_path, None)
                 input("Enter showtime to add: ")  # This will require a series of inputs
                 print("New showtime has been added to schedule")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "rem_showing":
                 # movies.update_showtime
                 print("[Placeholder]")
                 movies.list_showtimes(data_path, None)
                 input("Enter showtime to remove: ")  # This will require a series of inputs
                 print("Showtime has been removed from schedule")
-                input("[Enter to continue] ")
+                pause_confirm()
             case _:
                 raise NotImplemented
 
@@ -225,22 +249,22 @@ def admin_reports_menu():
                 # reports.export_report(...)
                 print("[Placeholder]")
                 print("Data exported to /path/file.json")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "occupancy":
                 # reports.occupancy_report(...)
                 print("[Placeholder]")
                 print("Theatre is 100% booked")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "revenue":
                 # reports.revenue_summary(...)
                 print("[Placeholder]")
                 print("Theatre has made 1 brouzouf")
-                input("[Enter to continue] ")
+                pause_confirm()
             case "top_movies":
                 # reports.top_movies(...)
                 print("[Placeholder]")
                 print(f"Most popular movie is")
-                input("[Enter to continue] ")
+                pause_confirm()
             case _:
                 raise NotImplemented
 
@@ -256,13 +280,16 @@ def admin_backups_menu():
                 print("Backup saved to /path/file.json")
             case _:
                 raise NotImplemented
-        input("[Enter to continue] ")
+        pause_confirm()
 
 # General Helpers---------
+def pause_confirm():
+    input("[Enter to continue] ")
+    
 def print_list(my_list):
     """Prints list and stops"""
     [print(item) for item in my_list]
-    input("[Enter to continue] ")
+    pause_confirm()
 
 # Schedule Functions---------
 def schedule_search_title():
@@ -284,9 +311,19 @@ def book_new(): # Incomplete
         print(f"{index}:   {item["name"]}")
     seating.render_seat_map()
 
-# Movie Viewing Functions---------
-def movie_detail_viewer():
-    pass
+# Movie Details Functions---------
+def movie_prettyprint(movie: movies.Movie):
+    print(f"Title: {movie.title}\n"
+          f"Genre: {', '.join(list(map(str,movie.genre))).capitalize()}\n"
+          f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)+"M"}\n"
+          f"Rating: {movie.rating:.2f}/5\n"
+          f"Description: {movie.description}")
+    pause_confirm()
+#     genre: list[str]
+#     duration: dt.timedelta
+#     rating: float
+#     description: str
+#     showtimes: list[dt.datetime] | None = None
 
 # Main menu
 while True:
@@ -298,6 +335,6 @@ while True:
         case "book":
             book_menu()
         case "imdb":
-            movie_detail_viewer()
+            movie_detail_menu()
         case _:
             raise NotImplemented
