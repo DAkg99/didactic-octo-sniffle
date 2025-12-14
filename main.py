@@ -27,6 +27,8 @@ import storage
 # Clear terminal between prompts
 # Prevent overlapping screenings (lol)
 
+# Theater name
+theater_name = "Testificate"
 # Database path
 data_path = "./data/"
 # Backup path
@@ -39,18 +41,19 @@ os.makedirs(data_path, exist_ok=True)
 
 @dataclass
 class MenuSelector:
+    """Each instance contains menu prompt & options. Method 'run' prints them and makes user choose (returns key)."""
     prompt_for_number: ClassVar[str] = "Enter a number: "
     number_selection_error: ClassVar[str] = "Invalid selection. Enter to continue."
     prompt: str
     options: list[dict[str, str]]
 
     @classmethod
-    def dynamic_constructor_keyless(cls, prompt: str, raw_options: list, add_back_option: bool = True):
-        """New instance. Options are keyed as ints rather than strs except "back" when automatically added."""
+    def dynamically_construct(cls, prompt: str, raw_options: list, add_back_option: bool = True):
+        """Construct new instance using raw_options as options (keyed as string integers)."""
         options = []
         if add_back_option:
             options.append({"back": "[Go back]"})
-        for index, option in enumerate(raw_options, bool(add_back_option)):
+        for index, option in enumerate(raw_options, bool(add_back_option)): # Start from 1 if [Go Back] was added.
             options.append({str(index): option})
         return cls(prompt,options)
 
@@ -81,64 +84,78 @@ class MenuSelector:
 
 # Initialise menu selection objects
 main_selector = MenuSelector(
-    "What would you like to do?", [
-        {"admin": "[Staff Access]"},                     # Submenu
-        {"schedule": "View scheduled showtimes"},        # Submenu
-        {"book": "Book a ticket"},                       # Submenu
-        {"imdb": "Read more about available movies"}])   # Submenu
+    "What would you like to do?", [                         # 1.Main
+        {"admin": "[Staff Access]"},                        # 1.Submenu
+        {"schedule": "View scheduled showtimes"},           # 2.Submenu
+        {"book": "Book a ticket"},                          # 3.Submenu
+        {"imdb": "Read more about available movies"}])      # 4.Submenu
 
 schedule_selector = MenuSelector(
-    "How would you like to view the schedule?", [
-        {"back": "[Go back]"},
-        {"title": "Showtimes of a specific movie"},
-        {"date": "All movies on a specific day"},
-        {"all": "All movies"}])
+    "How would you like to view the schedule?", [           # 1.2 Schedule Viewing
+        {"back": "[Go back]"},                              # BACK
+        {"title": "Showtimes of a specific movie"},         # Action
+        {"date": "All movies on a specific day"},           # Action
+        {"all": "All movies"}])                             # Action
 
 book_selector = MenuSelector(
-    "Booking options:", [
-        {"back": "[Go back]"},
-        {"new_book": "Make a new booking"},
-        {"view_book": "View current bookings"},
-        {"remove_book": "Cancel a booking"}])
+    "Booking options:", [                                   # 1.3 Booking
+        {"back": "[Go back]"},                              # BACK
+        {"new_book": "Make a new booking"},                 # Action
+        {"view_book": "View current bookings"},             # Action
+        {"remove_book": "Cancel a booking"}])               # Action
 
 admin_selector = MenuSelector(
-    "What would you like to manage?", [
-        {"back": "[Exit Admin Mode]"},
-        {"movies": "Manage movies & showtimes"},  # Submenu
-        {"reports": "Manage analytics"},          # Submenu
-        {"backups": "Manage database backups"}])  # Submenu
+    "What would you like to manage?", [                     # 1.1 Admin
+        {"back": "[Exit Admin Mode]"},                      # BACK
+        {"movies": "Manage movies & showtimes"},            # 1.Submenu
+        {"reports": "Manage analytics"},                    # 2.Submenu
+        {"backups": "Manage database backups"}])            # 3.Submenu
 
 admin_movies_selector = MenuSelector(
-    "Movie options:", [
-        {"back": "[Go back]"},
-        {"new_movie": "Add a new movie"},  # Add to movie list. Ask if new schedule should be made.
-        {"rem_movie": "Retire a movie"},  # Remove from movie list. Should also remove it from schedule.
-        {"new_showing": "Add new showing to schedule"},
-        {"rem_showing": "Remove a showing from schedule"}])
+    "Movie options:", [                                     # 1.1.1 Admin Movies
+        {"back": "[Go back]"},                              # BACK
+        {"new_movie": "Add a new movie"},                   # Action (TO DO) (Note: Ask to create new showing)
+        {"rem_movie": "Retire a movie"},                    # Action (TO DO) (Note: Remove current showings)
+        {"new_showing": "Add new showing to schedule"},     # Action (TO DO)
+        {"rem_showing": "Remove a showing from schedule"}]) # Action (TO DO)
 
 admin_reports_selector = MenuSelector(
-    "Analytic options:", [
-        {"back": "[Go back]"},
-        {"export": "Export all analytics to file"},  # reports.export_report()
-        {"occupancy": "View occupancy statistics"},  # reports.occupancy_report()
-        {"revenue": "View revenue summary"},  # reports.revenue_summary()
-        {"top_movies": "View the most popular 5 movies"}])  # reports.top_movies()
+    "Analytic options:", [                                  # 1.1.2 Admin Reports
+        {"back": "[Go back]"},                              # BACK
+        {"export": "Export all analytics to file"},         # Action (TO DO) (Note: reports.export_report())
+        {"occupancy": "View occupancy statistics"},         # Action (TO DO) (Note: reports.occupancy_report())
+        {"revenue": "View revenue summary"},                # Action (TO DO) (Note: reports.revenue_summary())
+        {"top_movies": "View the most popular 5 movies"}])  # Action (TO DO) (Note: reports.top_movies())
 
 admin_backups_selector = MenuSelector(
-    "Backup options:", [
-        {"back": "[Go back]"},
-        {"save_backup": "Create a manual backup of data"}])  # storage.backup_state()
-        #{"": ""},
+    "Backup options:", [                                    # 1.1.3 Admin Backups
+        {"back": "[Go back]"},                              # BACK
+        {"save_backup": "Create a manual backup of data"}]) # Action (TO DO) (Note: storage.backup_state())
+        #{"": ""},                                            (TO DO: View, restore, delete backups)
         #{"": ""},
         #{"": ""}])
 
 # Initialise menu selection objects which can't be hardcoded.
-movie_view_selector = MenuSelector.dynamic_constructor_keyless(
-    "Select a movie to learn more about it:",
+movie_view_selector = MenuSelector.dynamically_construct(          # 1.4 Movie Details
+    "Select a movie to learn more about it:",                     # BACK & Actions
     cached_movies := [movie for movie in movies.load_movies(data_path)])
 
 
 ### Menus
+def main_menu():
+    while True:
+        match main_selector.run():
+            case "admin":
+                admin_menu()
+            case "schedule":
+                schedule_menu()
+            case "book":
+                book_menu()
+            case "imdb":
+                movie_detail_menu()
+            case _:
+                raise NotImplemented
+
 def schedule_menu():
     """Make user search through the schedule"""
     while True:
@@ -279,7 +296,6 @@ def pause_confirm():
     input("[Enter to continue] ")
     
 def print_list(my_list):
-    """Prints list and stops"""
     [print(item) for item in my_list]
     pause_confirm()
 
@@ -313,16 +329,6 @@ def movie_pretty_print(movie: movies.Movie):
     pause_confirm()
 
 
-# Main menu
-while True:
-    match main_selector.run():
-        case "admin":
-            admin_menu()
-        case "schedule":
-            schedule_menu()
-        case "book":
-            book_menu()
-        case "imdb":
-            movie_detail_menu()
-        case _:
-            raise NotImplemented
+# START
+print(f"Welcome to {theater_name}!")
+main_menu()

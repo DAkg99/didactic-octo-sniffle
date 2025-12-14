@@ -1,6 +1,11 @@
+"""
+    Validates actions, saves & loads backups.
+"""
+
 import datetime as dt
+
 def user_input_verified_date(prompt_override: str = "") -> dt.datetime | None:
-    """Repeatedly prompts user for valid string until it's done (returns datetime) or user cancels (returns None)"""
+    """Repeatedly prompts user for valid string until one is given (return datetime) or user cancels (return None)"""
     # Branchless conditional to determine prompt string, followed by loop to get valid answer from user
     prompt = (f"Enter date (YYYY-MM-DD): " * bool(not prompt_override)  + prompt_override * bool(prompt_override))
     while True:

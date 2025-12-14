@@ -1,3 +1,7 @@
+"""
+    Manages movies and their showtimes.
+"""
+
 import json
 import datetime as dt
 from dataclasses import dataclass, field
