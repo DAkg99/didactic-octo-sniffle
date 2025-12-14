@@ -136,6 +136,7 @@ admin_backups_selector = MenuSelector(
         #{"": ""}])
 
 # Initialise menu selection objects which can't be hardcoded.
+# TO DO: Maybe turn this into a function so it's actually dynamic (hoping garbage collector will delete old ones).
 movie_view_selector = MenuSelector.dynamically_construct(          # 1.4 Movie Details
     "Select a movie to learn more about it:",                     # BACK & Actions
     cached_movies := [movie for movie in movies.load_movies(data_path)])
@@ -292,12 +293,65 @@ def admin_backups_menu():
 
 
 # General Helpers---------
+def clear_terminal():
+    if os.name == "nt":
+        os.system("cls") # Windows
+    else:
+        os.system("clear") # Unix & Unix-Like
+
+def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
+    """
+        Centers string horizontally on the terminal by padding its left and right side with characters.
+        Minimum padding argument isn't respected if terminal too narrow.
+        If terminal too narrow anyway, function is nulled and input is returned without processing.
+    """
+    # terminal_width = next(iter(os.get_terminal_size()))
+    terminal_width = 120
+    min_width_allowed = 5
+    if terminal_width < min_width_allowed:
+        return my_str # Abort function; terminal too narrow
+    if min_lines > len(my_str.split()):
+        raise Exception(f"Input string has too few space-separated words to be split into {min_lines} lines.")
+
+    while terminal_width - min_padding <= terminal_width: # Change min_padding as necessary
+        min_padding -= 1
+    working_columns = terminal_width - min_padding
+    my_str = my_str.strip()
+    # Recursively go through the string. Divide into words or hyphenated chunk when necessary.
+    if working_columns - len(my_str) < 0:
+        if len(my_str.split()) > 1:
+            return "\n".join([center_string_x(word, min_padding, min_lines, pad_char)
+                              for word in my_str.split()])
+        return "\n".join([center_string_x(chunk, min_padding, min_lines, pad_char)
+                          for chunk in string_spread_to_chunks(my_str, working_columns)])
+    # Set left and right padding
+    padding_left = (terminal_width - len(my_str)) // 2 * pad_char
+    if pad_char == " ":
+        padding_right = "" # Don't bother if pad_char is space anyway.
+    else:
+        # Padding_right subtracts 1 at the end because otherwise Windows CMD does line-breaks for whatever reason.
+        padding_right = ((terminal_width - len(my_str)) // 2  + ((terminal_width - len(my_str)) % 2 - 1)) * pad_char
+    return padding_left + my_str + padding_right
+
 def pause_confirm():
     input("[Enter to continue] ")
-    
+
 def print_list(my_list):
     [print(item) for item in my_list]
     pause_confirm()
+
+def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = True) -> list[str]:
+    """Splits string into relatively even chunks, abiding by the max chunk size given"""
+    bin_count = len(my_str) // (max_chunk_size - (1 * hyphenate)) + 1
+    min_chunk_size = (len(my_str)//bin_count)
+    remainder = len(my_str) % bin_count
+    string_chunks = []
+    for i in [_ * min_chunk_size + remainder for _ in range(0, bin_count)]: # Ignores the first remainder-many chars.
+        string_chunks.append(my_str[i:(i + min_chunk_size)] + ("-" * hyphenate))
+    string_chunks[0] = my_str[0:remainder] + string_chunks[0] # Ignored chars are added to the first bin.
+    string_chunks[-1] = string_chunks[-1][0:-1] if hyphenate else string_chunks[-1] # Last hyphen removed.
+    return string_chunks
+
 
 # Schedule Search Functions---------
 def schedule_search_title():
@@ -316,19 +370,21 @@ def book_new(): # Incomplete
     current_schedule = movies.list_showtimes(data_path)
     print("Current schedule: ")
     for index, item in enumerate(current_schedule,1):
-        print(f"{index}:   {item["name"]}")
+        print(f"{index}:   {item['name']}")
     seating.render_seat_map()
 
 # Movie Details Functions---------
 def movie_pretty_print(movie: movies.Movie):
     print(f"Title: {movie.title}\n"
           f"Genre: {', '.join(list(map(str,movie.genre))).capitalize()}\n"
-          f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)+"M"}\n"
+          f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)}M\n"
           f"Rating: {movie.rating:.2f}/5\n"
           f"Description: {movie.description}")
     pause_confirm()
 
 
 # START
-print(f"Welcome to {theater_name}!")
+clear_terminal()
+
+print(center_string_x(f"Welcome to {theater_name}!"))
 main_menu()
