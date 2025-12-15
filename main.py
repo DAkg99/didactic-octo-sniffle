@@ -26,6 +26,7 @@ import storage
 
 # Extra To-dos:
 # Get rid of dogwater text-centering function
+# Replace movie_pretty_print() with __repr__ method for Movie class
 # Make schedule viewer send user directly to new booking, with data of requested showtime
 # Colored terminal
 # Clear terminal between prompts
@@ -228,9 +229,9 @@ def book_menu():
 
 def book_new_menu(): # Incomplete
     while True:
-        match booking_movie_selector.run():
-            case _:
-                raise NotImplemented
+        if (user_choice := movie_view_selector.run()) == "back":
+            return
+        raise NotImplemented
 
 def movie_detail_menu():
     while True:
@@ -338,25 +339,26 @@ def admin_backups_menu():
 # General Helpers---------
 def clear_terminal():
     if os.name == "nt":
-        os.system("cls") # Windows
+        os.system("cls")  # Windows
     else:
-        os.system("clear") # Unix & Unix-Like
+        os.system("clear")  # Unix & Unix-Like
 
 def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
     """
         Centers string horizontally on the terminal by padding its left and right side with characters.
+        Splits string into lines to fit better, or to abide by min_lines argument (atg must be >= number of words).
         Minimum padding argument isn't respected if terminal too narrow.
-        If terminal too narrow anyway, function is nulled and input is returned without processing.
+        If terminal is still too narrow, function is nulled and input is returned without processing.
     """
     # terminal_width = next(iter(os.get_terminal_size()))
-    terminal_width = 120
-    min_width_allowed = 5
+    terminal_width = 120    # DEBUG
+    min_width_allowed = 5   # Keep this 3 or higher
     if terminal_width < min_width_allowed:
-        return my_str # Abort function; terminal too narrow
+        return my_str       # Null function; terminal too narrow
     if min_lines > len(my_str.split()):
         raise Exception(f"Input string has too few space-separated words to be split into {min_lines} lines.")
 
-    while terminal_width - min_padding <= terminal_width: # Change min_padding as necessary
+    while terminal_width - min_padding < min_width_allowed:  # Decrease min_padding if necessary
         min_padding -= 1
     working_columns = terminal_width - min_padding
     my_str = my_str.strip()
@@ -370,9 +372,9 @@ def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_c
     # Set left and right padding
     padding_left = (terminal_width - len(my_str)) // 2 * pad_char
     if pad_char == " ":
-        padding_right = "" # Don't bother if pad_char is space anyway.
+        padding_right = "" # Don't bother with right padding if pad_char is space anyway.
     else:
-        # Padding_right subtracts 1 at the end because otherwise Windows CMD does line-breaks for whatever reason.
+        # Padding_right subtracts 1 at the end, otherwise Windows CMD does line-breaks.
         padding_right = ((terminal_width - len(my_str)) // 2  + ((terminal_width - len(my_str)) % 2 - 1)) * pad_char
     return padding_left + my_str + padding_right
 
