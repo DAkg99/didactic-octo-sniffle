@@ -363,7 +363,7 @@ def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_c
     working_columns = terminal_width - min_padding
     my_str = my_str.strip()
     # Recursively go through the string. Divide into words or hyphenated chunk when necessary.
-    if working_columns - len(my_str) < 0:
+    if working_columns < len(my_str):
         if len(my_str.split()) > 1:
             return "\n".join([center_string_x(word, min_padding, min_lines, pad_char)
                               for word in my_str.split()])
