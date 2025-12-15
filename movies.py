@@ -4,19 +4,53 @@
 
 import json
 import datetime as dt
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import ClassVar
 
 
-@dataclass
+@dataclass(frozen=True)
 class Movie:
+    """Immutable movie object. Rating ARE mutable (use method). Class keeps dictionary of all instances."""
+    current_items: ClassVar[dict] = dict()
     title: str
     genre: list[str]
     duration: dt.timedelta
-    rating: float
+    rating: float  # !Mutable! Do not use for hashing.
     description: str
+
+    def __unique_attrs(self):
+        return self.title, "".join(self.genre), self.duration, self.description
+
+    def __hash__(self):
+        return hash(self.__unique_attrs())
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__unique_attrs() == other.__unique_attrs()
+        return False
 
     def __repr__(self):
         return self.title
+
+    def __post_init__(self):
+        while True:
+            if not Movie.current_items.get(self):
+                Movie.current_items[self] = self
+            elif Movie.current_items.get(self) == self:
+                break # Movie already in database, ignore.
+
+    def update_rating(self, new_rating: str):
+        while True:
+            try:
+                new_rating = float(new_rating)
+                break
+            except ValueError:
+                print("Error: Rating must be between 0 and 5.")
+                new_rating = input("Enter new value or (q) to cancel: ").lower().strip()
+                if new_rating == "q":
+                    return
+                continue
+        object.__setattr__(self, "rating",new_rating)
 
     @classmethod
     def from_dict(cls, movie_dict: dict[str, str]):

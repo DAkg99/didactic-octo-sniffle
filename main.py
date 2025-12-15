@@ -336,7 +336,7 @@ def admin_backups_menu():
         pause_confirm()
 
 
-# General Helpers---------
+# General Purpose Functions---------
 def clear_terminal():
     if os.name == "nt":
         os.system("cls")  # Windows
