@@ -54,14 +54,14 @@ class MenuSelector:
     max_opts_per_page: int = 10
 
     @classmethod
-    def dynamically_construct(cls, prompt: str, raw_options: list, add_back_option: bool = True):
-        """Construct new instance using raw_options as options (keyed as string integers)."""
-        options = []
-        if add_back_option:
-            options.append({"back": "[Go back]"})
-        for index, option in enumerate(raw_options, bool(add_back_option)):  # Start from 1 if [Go Back] was added.
+    def dynamic_selector(cls, prompt: str, raw_options: list, dont_run: bool = False):
+        """Construct new instance using raw_options as options (keyed as string integers). Immediately runs selection"""
+        options = [{"back": "[Go back]"}]
+        for index, option in enumerate(raw_options, 1):
             options.append({str(index): option})
-        return cls(prompt, options)
+        if dont_run:
+            return cls(prompt, options)
+        return cls(prompt, options).run()
 
     def run(self, page: int = 0, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
@@ -171,14 +171,14 @@ admin_backups_selector = MenuSelector(
 
 # Initialise menu selection objects which can't be hardcoded.
 # TO DO: Maybe turn this into a function so it's actually dynamic (hoping garbage collector will delete old ones).
-movie_view_selector = MenuSelector.dynamically_construct(
-    "Select a movie to learn more about it:",
-    cached_movies := [movie for movie in movies.load_movies(data_path)])
+# movie_view_selector = MenuSelector.dynamically_construct(
+#     "Select a movie to learn more about it:",
+#     cached_movies := [movie for movie in movies.load_movies(data_path)])
 
-booking_movie_selector = MenuSelector.dynamically_construct(
-    "Select a scheduled viewing:",
-    cached_viewings := [showing for showing in movies.list_showtimes(data_path)]
-)
+# booking_movie_selector = MenuSelector.dynamically_construct(
+#     "Select a scheduled viewing:",
+#     cached_viewings := [showing for showing in movies.list_showtimes(data_path)]
+# )
 
 ### Menus
 def main_menu():
@@ -229,13 +229,23 @@ def book_menu():
 
 def book_new_menu(): # Incomplete
     while True:
-        if (user_choice := movie_view_selector.run()) == "back":
+        user_choice = MenuSelector.dynamic_selector(
+            "Select a scheduled viewing:",
+            cached_viewings := [showing for showing in movies.list_showtimes(data_path)])
+        if user_choice == "back":
             return
+        user_viewing = cached_viewings[int(user_choice) - 1]
+
+        name, age, email = ask_user_info()
+        # calculate_booking_total
         raise NotImplemented
 
 def movie_detail_menu():
     while True:
-        if (user_choice := movie_view_selector.run()) == "back":
+        user_choice = MenuSelector.dynamic_selector(
+            "Select a movie to learn more about it:",
+            cached_movies := [movie for movie in movies.load_movies(data_path)])
+        if user_choice == "back":
             return
         user_movie = cached_movies[int(user_choice) - 1]
         movie_pretty_print(user_movie)
@@ -343,6 +353,37 @@ def clear_terminal():
     else:
         os.system("clear")  # Unix & Unix-Like
 
+def pause_confirm():
+    input("[Enter to continue] ")
+
+def print_list(my_list):
+    [print(item) for item in my_list]
+    pause_confirm()
+
+def ask_user_info() -> tuple[str, int, str]:
+    while True: # Get name
+        name = (input("Enter your full name: "))
+        if not name:
+            print("Name can't be blank")
+            continue
+        break
+    while True: # Get age
+        try:
+            age = (int(input("Enter your age: ")))
+            break
+        except (TypeError, ValueError):
+            print("Please enter an integer.")
+    while True: # Get email
+        email = input("Enter your email address: ").strip().lower()
+        if email.find("@") == -1:
+            print("Please enter a valid email address.")
+            continue
+        elif email[email.find("@"):].find(".") == -1:
+            print("Please enter a valid email address.")
+        else:
+            break
+    return name, age, email
+
 def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
     """
         Centers string horizontally on the terminal by padding its left and right side with characters.
@@ -378,13 +419,6 @@ def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_c
         padding_right = ((terminal_width - len(my_str)) // 2  + ((terminal_width - len(my_str)) % 2 - 1)) * pad_char
     return padding_left + my_str + padding_right
 
-def pause_confirm():
-    input("[Enter to continue] ")
-
-def print_list(my_list):
-    [print(item) for item in my_list]
-    pause_confirm()
-
 def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = True) -> list[str]:
     """Splits string into relatively even chunks, abiding by the max chunk size given"""
     bin_count = len(my_str) // (max_chunk_size - (1 * hyphenate)) + 1
@@ -396,6 +430,7 @@ def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = 
     string_chunks[0] = my_str[0:remainder] + string_chunks[0] # Ignored chars are added to the first bin.
     string_chunks[-1] = string_chunks[-1][0:-1] if hyphenate else string_chunks[-1] # Last hyphen removed.
     return string_chunks
+
 
 
 # Schedule Search Functions---------
@@ -416,7 +451,7 @@ def movie_pretty_print(movie: movies.Movie):
     print(f"Title: {movie.title}\n"
           f"Genre: {', '.join(list(map(str,movie.genre))).capitalize()}\n"
           f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)}M\n"
-          f"Rating: {movie.rating:.2f}/5\n"
+          f"Rating: {movie.rating:.2f}/5.00\n"
           f"Description: {movie.description}")
     pause_confirm()
 

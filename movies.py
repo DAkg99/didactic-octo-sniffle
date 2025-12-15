@@ -61,10 +61,32 @@ class Movie:
             float(movie_dict["rating"]),
             movie_dict["description"],)
 
-@dataclass
+@dataclass(frozen=True)
 class Showtime:
+    current_items: ClassVar[dict] = dict()
     title: str
     datetime: dt.datetime
+
+    def __unique_attrs(self):
+        return self.title, self.datetime
+
+    def __hash__(self):
+        return hash(self.__unique_attrs())
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__unique_attrs() == other.__unique_attrs()
+        return False
+
+    def __repr__(self):
+        return f"Title: {self.title}\t\tDate: {self.date()}\t\tTime: {self.time()}"
+
+    def __post_init__(self):
+        while True:
+            if not Showtime.current_items.get(self):
+                Showtime.current_items[self] = self
+            elif Showtime.current_items.get(self) == self:
+                break # Showtime already in database, ignore.
 
     def date(self) -> dt.datetime:
         return dt.datetime(self.datetime.year, self.datetime.month, self.datetime.day)
@@ -76,9 +98,6 @@ class Showtime:
     def time_str(self) -> str:
         return self.datetime.strftime("%H:%M")
 
-    def __repr__(self):
-        return f"Title: {self.title}\t\tDate: {self.date()}\t\tTime: {self.time()}"
-
     @classmethod
     def from_dict(cls, show_dict: dict[str, str]):
         return cls(
@@ -86,13 +105,13 @@ class Showtime:
             dt.datetime.strptime(f"{show_dict['time']} {show_dict['date']}","%H:%M %Y-%m-%d"))
 
 
+
 def load_movies(path: str) -> list[Movie]:
     """Returns movie database as list"""
     movies_raw_list = json.load(open(path+"movies.json"))
-    movies_list = []
     for item in movies_raw_list:
-        movies_list.append(Movie.from_dict(item))
-    return movies_list
+        Movie.from_dict(item)
+    return list(Movie.current_items.values())
 
 def save_movies(path: str, movies: list) -> None:
     """Saves movies to database file"""
@@ -106,18 +125,12 @@ def add_movie(movies: list, movie_data: dict) -> list:
 def remove_movie(): # Todo
     pass
 
-
-# def load_showtimes(path: str) -> list:
-#     """Loads showtime database file"""
-#     return list(json.load(open(path+"showtimes.json")))
-
 def load_showtimes(path: str) -> list[Showtime]:
     """Loads showtime database file"""
     showtimes_raw_list = json.load(open(path + "showtimes.json"))
-    showtimes_list = []
     for item in showtimes_raw_list:
-        showtimes_list.append(Showtime.from_dict(item))
-    return showtimes_list
+        Showtime.from_dict(item)
+    return list(Showtime.current_items.values())
 
 def save_showtimes(path: str, showtimes: list) -> None:
     """Saves showtimes to database file"""
