@@ -15,6 +15,9 @@ import storage
 # Main: Schedule viewer
 # Main: Movie details
 
+# Working on:
+# Booking
+
 # To-do:
 # All unimplemented main features
 # Schedule viewer pretty print
@@ -22,6 +25,7 @@ import storage
 # Admin booking cancellation
 
 # Extra To-dos:
+# Get rid of dogwater text-centering function
 # Make schedule viewer send user directly to new booking, with data of requested showtime
 # Colored terminal
 # Clear terminal between prompts
@@ -38,14 +42,15 @@ os.makedirs(backup_path, exist_ok=True)
 os.makedirs(data_path, exist_ok=True)
 
 
-
 @dataclass
 class MenuSelector:
     """Each instance contains menu prompt & options. Method 'run' prints them and makes user choose (returns key)."""
     prompt_for_number: ClassVar[str] = "Enter a number: "
-    number_selection_error: ClassVar[str] = "Invalid selection. Enter to continue."
+    number_selection_error: ClassVar[str] = "Invalid selection. Enter to continue. "
+    option_page_controls: ClassVar[list[dict[str,str]]] = [{"pg_prev": "[Previous Page]"}, {"pg_next": "[Next Page]"}]
     prompt: str
     options: list[dict[str, str]]
+    max_opts_per_page: int = 10
 
     @classmethod
     def dynamically_construct(cls, prompt: str, raw_options: list, add_back_option: bool = True):
@@ -53,33 +58,61 @@ class MenuSelector:
         options = []
         if add_back_option:
             options.append({"back": "[Go back]"})
-        for index, option in enumerate(raw_options, bool(add_back_option)): # Start from 1 if [Go Back] was added.
+        for index, option in enumerate(raw_options, bool(add_back_option)):  # Start from 1 if [Go Back] was added.
             options.append({str(index): option})
-        return cls(prompt,options)
+        return cls(prompt, options)
 
-    def run(self, prompt_override: str = "") -> str:
+    def run(self, page: int = 0, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
         while True:
-            self._print_menu(prompt_override)
-            choice = self._make_user_choose()
-            if not choice:
+            options = self._get_page_options(page)
+            self._print_menu(options, prompt_override)
+            choice = self._make_user_choose(options)
+            if choice == "pg_prev":
+                page -= 1
+                continue
+            elif choice == "pg_next":
+                page += 1
+                continue
+            elif not choice:
                 input(MenuSelector.number_selection_error)
+                continue
             break
         return choice
 
-    def _print_menu(self, prompt_override: str):
+    def _print_menu(self, options, prompt_override: str = None):
         """Prints instance's prompt & options. Prompt can be overridden."""
         print((self.prompt * bool(not prompt_override)) +
-              (str(prompt_override) * bool(prompt_override)))  # Branchless conditional
-        for i, option in enumerate(self.options):
-            print(f"{i}: {next(iter((option.values())))}")  # Make values iterable -> Iterate to next
+              (str(prompt_override) * bool(prompt_override)))  # Branchless conditional for prompt overriding
+        for i, option in enumerate(options):
+            if next(iter((option.values()))) == "null":
+                continue
+            print(f"{i}: {next(iter((option.values())))}")  # Print all options except null ones
+        return
 
-    def _make_user_choose(self) -> str | None:
+    def _make_user_choose(self, options) -> str | None:
         """Prompts user to select an option & returns it. Returns None when invalid selection."""
+        if not options:
+            options = self.options
         try:
-            return next(iter(self.options[int(input(MenuSelector.prompt_for_number))].keys()))  # Return chosen key
+            return next(iter(options[int(input(MenuSelector.prompt_for_number))].keys()))  # Return chosen key
         except (NameError, TypeError, IndexError):
             return None
+
+    def _get_page_options(self, page: int):
+        if len(self.options) <= MenuSelector.max_opts_per_page:
+            page_options = self.options
+        elif page == 0:
+            page_options = list(self.options[((self.max_opts_per_page - 2) * page):((self.max_opts_per_page - 2) * (page + 1))+1])
+            page_options.append(MenuSelector.option_page_controls[1])
+        else:
+            page_options = list(self.options[((self.max_opts_per_page - 2) * page) + 1:((self.max_opts_per_page - 2) * (page + 1))+ 1])
+            page_options.insert(0,MenuSelector.option_page_controls[0])
+            while len(page_options) < 9:
+                page_options.append({"":"null"})
+            page_options.append(MenuSelector.option_page_controls[1])
+        return page_options
+
 
 
 # Initialise menu selection objects
@@ -87,7 +120,7 @@ main_selector = MenuSelector(
     "What would you like to do?", [                         # 1.Main
         {"admin": "[Staff Access]"},                        # 1.Submenu
         {"schedule": "View scheduled showtimes"},           # 2.Submenu
-        {"book": "Book a ticket"},                          # 3.Submenu
+        {"book": "Manage booking"},                         # 3.Submenu
         {"imdb": "Read more about available movies"}])      # 4.Submenu
 
 schedule_selector = MenuSelector(
@@ -137,10 +170,14 @@ admin_backups_selector = MenuSelector(
 
 # Initialise menu selection objects which can't be hardcoded.
 # TO DO: Maybe turn this into a function so it's actually dynamic (hoping garbage collector will delete old ones).
-movie_view_selector = MenuSelector.dynamically_construct(          # 1.4 Movie Details
-    "Select a movie to learn more about it:",                     # BACK & Actions
+movie_view_selector = MenuSelector.dynamically_construct(
+    "Select a movie to learn more about it:",
     cached_movies := [movie for movie in movies.load_movies(data_path)])
 
+booking_movie_selector = MenuSelector.dynamically_construct(
+    "Select a scheduled viewing:",
+    cached_viewings := [showing for showing in movies.list_showtimes(data_path)]
+)
 
 ### Menus
 def main_menu():
@@ -179,13 +216,19 @@ def book_menu():
             case "back":
                 return
             case "new_book":
-                book_new()
+                book_new_menu()
             case "view_book":
                 # Placeholder
                 print("TO DO")
             case "remove_book":
                 # Placeholder
                 print("TO DO")
+            case _:
+                raise NotImplemented
+
+def book_new_menu(): # Incomplete
+    while True:
+        match booking_movie_selector.run():
             case _:
                 raise NotImplemented
 
@@ -365,13 +408,6 @@ def schedule_search_date():
 def schedule_search_all():
     print_list(movies.list_showtimes(data_path))
 
-# Book Functions---------
-def book_new(): # Incomplete
-    current_schedule = movies.list_showtimes(data_path)
-    print("Current schedule: ")
-    for index, item in enumerate(current_schedule,1):
-        print(f"{index}:   {item['name']}")
-    seating.render_seat_map()
 
 # Movie Details Functions---------
 def movie_pretty_print(movie: movies.Movie):
@@ -385,6 +421,5 @@ def movie_pretty_print(movie: movies.Movie):
 
 # START
 clear_terminal()
-
-print(center_string_x(f"Welcome to {theater_name}!"))
+print(center_string_x(f"Welcome to {theater_name}!"),"\n")
 main_menu()
