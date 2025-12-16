@@ -1,0 +1,15 @@
+[
+  {
+    "hash_id": "123placeholder890",
+    "title": "title",
+    "datetime": "datetime",
+    "bookings": [
+      {
+        "name": "name",
+        "age": "age",
+        "email": "",
+        "seats": [[1,1],[1,2]]
+      }
+    ]
+  }
+]

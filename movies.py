@@ -154,6 +154,7 @@ def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> 
         return ["No showings found."]
     return requested_showtimes
 
-def schedule_showtime(showtime_data: dict) -> dict: pass # Todo
+def schedule_showtime(showtime_data: dict) -> dict: pass # To-do. Note: Make sure to add showing to bookings.json
 
-def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ...
+def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ... # To-do.
+# Note: Make sure to update bookings.json

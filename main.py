@@ -1,8 +1,10 @@
 import os
 import datetime as dt
+from curses.ascii import isalpha
 from dataclasses import dataclass
 from typing import ClassVar
 
+import bookings
 import movies
 import seating
 import storage
@@ -17,16 +19,21 @@ import storage
 
 # Working on:
 # Booking
+## Seat decoder
+## Booking class (booking.py)
 
 # To-do:
 # All unimplemented main features
 # Schedule viewer pretty print
 # Admin menu protection
 # Admin booking cancellation
+# Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
 # Extra To-dos:
 # Get rid of dogwater text-centering function
 # Replace movie_pretty_print() with __repr__ method for Movie class
+# Check for duplicates in database, automatically remove them
+# Look up why it's probably not a good idea to do a dictionary where keys and values are the same
 # Make schedule viewer send user directly to new booking, with data of requested showtime
 # Colored terminal
 # Clear terminal between prompts
@@ -54,14 +61,14 @@ class MenuSelector:
     max_opts_per_page: int = 10
 
     @classmethod
-    def dynamic_selector(cls, prompt: str, raw_options: list, dont_run: bool = False):
+    def dynamic_selector(cls, prompt: str, raw_options: list, run: bool = True):
         """Construct new instance using raw_options as options (keyed as string integers). Immediately runs selection"""
         options = [{"back": "[Go back]"}]
         for index, option in enumerate(raw_options, 1):
             options.append({str(index): option})
-        if dont_run:
-            return cls(prompt, options)
-        return cls(prompt, options).run()
+        if run:
+            return cls(prompt, options).run()
+        return cls(prompt, options)
 
     def run(self, page: int = 0, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
@@ -125,7 +132,7 @@ main_selector = MenuSelector(
         {"imdb": "Read more about available movies"}])      # 4.Submenu
 
 schedule_selector = MenuSelector(
-    "How would you like to view the schedule?", [           # 1.2 Schedule Viewing
+    "How would you like to view the schedule?", [           # 1.2 Schedule Showings
         {"back": "[Go back]"},                              # BACK
         {"title": "Showtimes of a specific movie"},         # Action
         {"date": "All movies on a specific day"},           # Action
@@ -169,16 +176,6 @@ admin_backups_selector = MenuSelector(
         #{"": ""},
         #{"": ""}])
 
-# Initialise menu selection objects which can't be hardcoded.
-# TO DO: Maybe turn this into a function so it's actually dynamic (hoping garbage collector will delete old ones).
-# movie_view_selector = MenuSelector.dynamically_construct(
-#     "Select a movie to learn more about it:",
-#     cached_movies := [movie for movie in movies.load_movies(data_path)])
-
-# booking_movie_selector = MenuSelector.dynamically_construct(
-#     "Select a scheduled viewing:",
-#     cached_viewings := [showing for showing in movies.list_showtimes(data_path)]
-# )
 
 ### Menus
 def main_menu():
@@ -230,12 +227,12 @@ def book_menu():
 def book_new_menu(): # Incomplete
     while True:
         user_choice = MenuSelector.dynamic_selector(
-            "Select a scheduled viewing:",
-            cached_viewings := [showing for showing in movies.list_showtimes(data_path)])
+            "Select a scheduled showing:",
+            cached_showings := [showing for showing in movies.list_showtimes(data_path)])
         if user_choice == "back":
             return
-        user_viewing = cached_viewings[int(user_choice) - 1]
-
+        user_showing = cached_showings[int(user_choice) - 1]
+        select_seats(user_showing)
         name, age, email = ask_user_info()
         # calculate_booking_total
         raise NotImplemented
@@ -275,13 +272,13 @@ def admin_movies_menu():
                 # movies.add_movie(...)
                 print("[Placeholder]")
                 input("Enter movie to add: ")
-                input("Schedule viewings right away? (y/n) ")
+                input("Schedule showings right away? (y/n) ")
                 print("Movie has been added")
                 pause_confirm()
             case "rem_movie":
                 # movies.remove_movie(...)
                 print("[Placeholder]")
-                print("Scheduled viewings for this movie will also be removed")
+                print("Scheduled showings for this movie will also be removed")
                 input("Enter movie to retire: ")
                 print("Movie has been retired")
                 pause_confirm()
@@ -432,7 +429,6 @@ def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = 
     return string_chunks
 
 
-
 # Schedule Search Functions---------
 def schedule_search_title():
     if search_for := input(f"Enter movie title: "):
@@ -454,6 +450,31 @@ def movie_pretty_print(movie: movies.Movie):
           f"Rating: {movie.rating:.2f}/5.00\n"
           f"Description: {movie.description}")
     pause_confirm()
+
+# Booking Functions
+def select_seats(showing):
+    while True:
+        bookings_for_showing = bookings.get_specific_bookings(data_path, showing)
+        seat_data = seating.initialize_seat_map(bookings_for_showing)
+        if not seat_data:
+            print("Unfortunately this showing is full.")
+            pause_confirm()
+            return
+        seats = input("Enter seat or multiple seats (comma separated) ('q' to cancel): ").strip().upper().split(", ")
+        if seats == "Q":
+            return
+        for seat in seats:
+            if 3 == len(seat):
+                seat = seat[:4]+"0"+seat[4]  # If length is 3, assume user omitted a leading zero for numeric part.
+            if not (len(seat) == 4 and seat[0:2].isalpha() and seat[2:4].isnumeric()):
+                print("Error, please format seats correctly.\nE.g.: AB03, AB04, AB05")
+                pause_confirm()
+                continue
+            decode_seat(seat)
+
+def decode_seat(seat: str):  # Unfinished
+    """Translate seat formatting (AA00) into seat coordinates [C, R]"""
+    ord(seat[0]) - 96
 
 
 # START
