@@ -1,15 +1,9 @@
 [
   {
-    "hash_id": "123placeholder890",
-    "title": "title",
-    "datetime": "datetime",
-    "bookings": [
-      {
-        "name": "name",
-        "age": "age",
-        "email": "",
-        "seats": [[1,1],[1,2]]
-      }
-    ]
+    "showtime": 1,
+    "name": "John Doe",
+    "age": 25,
+    "email": "john.doe@example.com",
+    "seats": "AA00"
   }
 ]

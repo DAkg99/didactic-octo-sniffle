@@ -1,22 +1,30 @@
 [
-	{
-		"title":"Hello Kitty",
-		"date":"2025-01-02",
-		"time":"16:45"
-	},
-	{
-		"title":"Hello Kitty 2",
-		"date":"2025-01-02",
-		"time":"19:45"
-	},
-	{
-		"title":"Hello Kitty",
-		"date":"2025-01-03",
-		"time":"12:45"
-	},
-	{
-		"title":"Death",
-		"date":"2025-01-03",
-		"time":"16:45"
-	}
+    {
+        "movie": "test1",
+        "datetime": "2025-01-02 16:45",
+        "screen": 1,
+        "attendees": 0,
+        "uid": 1
+    },
+    {
+        "movie": "test2",
+        "datetime": "2025-01-02 19:45",
+        "screen": 2,
+        "attendees": 0,
+        "uid": 2
+    },
+    {
+        "movie": "test1",
+        "datetime": "2025-01-03 12:45",
+        "screen": 3,
+        "attendees": 0,
+        "uid": 3
+    },
+    {
+        "movie": "test3",
+        "datetime": "2025-01-03 16:45",
+        "screen": 1,
+        "attendees": 5,
+        "uid": 4
+    }
 ]
