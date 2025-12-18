@@ -97,37 +97,11 @@ class Showtime:
     screen: int
     attendees: int
     uid: int
+    bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
     __seat_layout: tuple = (15, 10)
     __full: bool = False
     __max_attendees: int = 0
     __temporarily_reserved_seats: dict = field(default_factory=dict)
-    __bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
-
-    @property
-    def date(self) -> dt.datetime:
-        return dt.datetime(self.datetime.year, self.datetime.month, self.datetime.day)
-    @property
-    def time(self) -> dt.time:
-        return dt.time(self.datetime.hour, self.datetime.minute)
-    @property
-    def seat_layout(self) -> tuple:
-        return self.__seat_layout
-    @property
-    def full(self) -> bool:
-        return self.__full
-    @property
-    def max_attendees(self) -> int:
-        return self.__max_attendees
-    @property
-    def bookings(self) -> list:
-        return self.__bookings
-    @property
-    def occupied_seats(self) -> list:
-        occupied = list(self.__temporarily_reserved_seats.values())
-        for booking in self.bookings:
-            occupied += booking.seats
-        return occupied
-
 
     def __unique_attrs(self):
         return self.movie.uid, self.datetime, self.screen
@@ -158,16 +132,38 @@ class Showtime:
         else:
             self.__full = False
 
+
+    @property
+    def date(self) -> dt.datetime:
+        return dt.datetime(self.datetime.year, self.datetime.month, self.datetime.day)
+    @property
+    def time(self) -> dt.time:
+        return dt.time(self.datetime.hour, self.datetime.minute)
+    @property
+    def seat_layout(self) -> tuple:
+        return self.__seat_layout
+    @property
+    def full(self) -> bool:
+        return self.__full
+    @property
+    def max_attendees(self) -> int:
+        return self.__max_attendees
+    @property
+    def occupied_seats(self) -> list:
+        occupied = list(self.__temporarily_reserved_seats.values())
+        for booking in self.bookings:
+            occupied += booking.seats
+        return occupied
+
     @classmethod
-    def from_dict(cls, show_dict: dict[str, str | tuple | int]):
-        if not show_dict.get("uid"):
-            show_dict["uid"] = 0
+    def from_dict(cls, show_dict: dict):
         return cls(
             Movie.current_items[show_dict["movie"]],
             dt.datetime.strptime(show_dict["datetime"], "%Y-%m-%d %H:%M"),
             show_dict["screen"],
             show_dict["attendees"],
-            show_dict["uid"]
+            show_dict.get("uid", 0),
+            show_dict.get("bookings", list())
         )
 
     def to_dict(self):
@@ -179,12 +175,14 @@ class Showtime:
             "uid": self.uid
         }
 
-    def attendees_add(self, count: int):
-        self.attendees += count
+    def booking_new(self, booking):
+        self.bookings.append(booking)
+        self.attendees += len(booking.seats)
         self.__update_fullness_status()
 
-    def attendees_remove(self, count: int):
-        self.attendees -= count
+    def booking_remove(self, booking):
+        self.bookings.remove(booking)
+        self.attendees -= len(booking.seats)
         self.__update_fullness_status()
 
     def temp_reserve_seats_new(self, seats: list):
@@ -210,11 +208,8 @@ def load_movies(path: str) -> list[Movie]:
 
 def save_movies(path: str) -> None:
     """Saves movies to database file"""
-    open(path+"movies.json","w").write("")
-    json.dump(
-        [movie.to_dict() for movie in Movie.current_items.values()],
-        open(path+"movies.json","a"), indent=4
-    )
+    with open(path+"movies.json", "w") as movies_f:
+        json.dump([movie.to_dict() for movie in Movie.current_items.values()], movies_f, indent=4)
 
 def add_movie(movies: list, movie_data: dict) -> list:
     """Adds a new movie to the list of movies"""
@@ -233,11 +228,9 @@ def load_showtimes(path: str) -> list[Showtime]:
 
 def save_showtimes(path: str) -> None:
     """Saves showtimes to database file"""
-    open(path+"showtimes.json","w").write("")
-    json.dump(
-        [showtime.to_dict() for showtime in Showtime.current_items.values()],
-        open(path+"showtimes.json","a"), indent=4
-    )
+    with open(path+"showtimes.json", "w") as showtimes_f:
+        json.dump([showtime.to_dict() for showtime in Showtime.current_items.values()], showtimes_f, indent=4)
+
 
 def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> list:
     """Lists showtimes, with optional search parameter"""

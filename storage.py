@@ -5,7 +5,7 @@
 import datetime as dt
 import movies
 
-def fake_payment(price: int):
+def payment(price: int):
     """Pretend to take payments"""
     print(f"Your total is {price}₺")
     input("Enter payment details: ")

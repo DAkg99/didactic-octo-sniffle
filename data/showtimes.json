@@ -24,7 +24,7 @@
         "movie": "test3",
         "datetime": "2025-01-03 16:45",
         "screen": 1,
-        "attendees": 5,
+        "attendees": 0,
         "uid": 4
     }
 ]
