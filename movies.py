@@ -98,7 +98,7 @@ class Showtime:
     attendees: int
     uid: int
     bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
-    __seat_layout: tuple = (15, 10)
+    __seat_layout: tuple = (15, 10)  # Rows, columns
     __full: bool = False
     __max_attendees: int = 0
     __temporarily_reserved_seats: dict = field(default_factory=dict)

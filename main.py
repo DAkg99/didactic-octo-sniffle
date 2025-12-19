@@ -17,6 +17,9 @@ import storage
 # Main: Schedule viewer
 # Main: Movie details
 
+# Immediate Concerns:
+# find a better way to put seats in json
+
 # Working on:
 # Booking
 ## Seat decoder
@@ -61,7 +64,7 @@ backup_path = "./backup/"
 os.makedirs(backup_path, exist_ok=True)
 os.makedirs(data_path, exist_ok=True)
 # Create data files if absent
-for file_name in ["movies.json", "showtime.json", "booking.json"]:
+for file_name in ["movies.json", "showtimes.json", "bookings.json"]:
     if not os.path.exists(data_path + file_name):
         with open(data_path + file_name, 'x') as new_file:
             new_file.write("[{}]")
@@ -250,24 +253,24 @@ def book_new_menu(): # Incomplete
             cached_showings := [showing for showing in movies.list_showtimes(data_path)])
         if user_choice == "back":
             return
-
         showtime = cached_showings[int(user_choice) - 1]
         if showtime.full:
             print("This showing is full.")
             pause_confirm()
             return
-        seats = seating.select_seats(showtime)
-        if not seats:
+        seat_handler = seating.SeatHandler(showtime)
+        selected_seats = seat_handler.select_seats()
+        if not selected_seats:
             print("Seat selection cancelled.")
             return
-        booking_data = bookings.new_booking(showtime, seats)
+        booking_data = bookings.new_booking(showtime, selected_seats)
         if not storage.payment(bookings.calc_total(pricing_data, booking_data)):
             print("Payment cancelled.")
             return
         booking = bookings.Booking.from_dict(booking_data)
         bookings.save_booking(data_path, booking)
         print(f"Booking made successfully.\n"
-              f">>>>SAVE YOUR BOOKING ID\nBooking ID: {booking.uid}\n>>>>SAVE YOUR BOOKING ID")
+              f"{'-'*10} SAVE YOUR BOOKING ID {'-'*10}\nBooking ID: {booking.uid}\n{'-'*10} SAVE YOUR BOOKING ID {'-'*10}")
         pause_confirm()
         return
 
