@@ -116,6 +116,7 @@ class Showtime:
                 f"Availability: {self.attendees}/{self.__max_attendees}")
 
     def __post_init__(self):  # Sets up ID, max attendee count, and adds itself to the list of showtimes.
+        self.__verify_arrangement()
         if not self.uid:
             self.uid = 0
             while True:  # Find the smallest available ID.
@@ -132,6 +133,14 @@ class Showtime:
         else:
             self.__full = False
 
+    def __verify_arrangement(self):
+        """Check if seat arrangement is within valid range. Raise error if not."""
+        if 1 > self.seat_cols or 1 > self.seat_rows:
+            raise ValueError("Seat arrangement must have positive values.")
+        if self.seat_rows > 676:
+            raise ValueError("Too many seats! (Too many rows to enumerate with 2 alphabetic characters)")
+        elif self.seat_cols > 98:
+            raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
 
     @property
     def date(self) -> dt.datetime:
@@ -140,8 +149,11 @@ class Showtime:
     def time(self) -> dt.time:
         return dt.time(self.datetime.hour, self.datetime.minute)
     @property
-    def seat_layout(self) -> tuple:
-        return self.__seat_layout
+    def seat_cols(self) -> int:
+        return self.__seat_layout[1]
+    @property
+    def seat_rows(self) -> int:
+        return self.__seat_layout[0]
     @property
     def full(self) -> bool:
         return self.__full

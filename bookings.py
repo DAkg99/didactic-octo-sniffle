@@ -16,17 +16,18 @@ class Booking:
     age: int
     email: str
     issued: dt.datetime
-    seats: list[str] = field(default_factory=list)
-    uid: str = ''
+    cost: float
+    seats: list[tuple] = field(default_factory=list)
+    uid: str = ''  # Set during __post_init__
 
     def __unique_attributes(self):
-        return self.showtime.uid, self.name, self.age, self.email, "".join(self.seats)
+        return self.showtime.uid, self.name, self.age, self.email, "".join([str(seat) for seat in self.seats]), self.cost
     def __hash(self):
         print(hash(self.__unique_attributes()))
         return hash(self.__unique_attributes())
     def __post_init__(self):
-        self.showtime.booking_new(self)
-        if not self.uid:
+        self.showtime.booking_new(self)  # Append to associated showtime
+        if not self.uid:  # Get UID
             while True:
                 uid_trial = f"{random.randint(1, 4294967295):08x}"
                 if uid_trial not in Booking.ids:
@@ -37,14 +38,20 @@ class Booking:
         return self.__unique_attributes() == other.__unique_attributes()
 
     @classmethod
-    def from_dict(cls, book_dict: dict):
+    def from_dict(cls, book_dict: dict, price = None):
+        if not book_dict.get("cost"):
+            if not price:
+                raise TypeError("Cost attribute missing!")
+            else:
+                book_dict["cost"] = price
         return cls(
             movies.Showtime.current_items[book_dict["showtime_id"]],
             book_dict["name"],
             book_dict["age"],
             book_dict["email"],
             dt.datetime.strptime(book_dict["issued"], "%Y-%m-%d %H:%M"),
-            book_dict["seats"],
+            book_dict["cost"],
+            [tuple([int(value) for value in seat.split("-")]) for seat in book_dict["seats"].split(", ")],
             book_dict.get("uid")
         )
 
@@ -55,16 +62,25 @@ class Booking:
             "age": self.age,
             "email": self.email,
             "issued": self.issued.strftime("%Y-%m-%d %H:%M"),
-            "seats": self.seats,
+            "cost": self.cost,
+            "seats": ", ".join([f"{seat[0]}-{seat[1]}" for seat in self.seats]),
             "uid": self.uid
         }
 
+    def save_to_database(self, path) -> str:
+        with open(path + "bookings.json", "r") as book_f:
+            all_bookings = json.load(book_f)
+        with open(path + "bookings.json", "w") as book_f:
+            all_bookings.append(self.to_dict())
+            json.dump(all_bookings, book_f, indent=4)
+        return self.uid
 
 
-def new_booking(showtime, seats: list) -> dict | None:
+
+def new_booking(showtime, seats: list[tuple]) -> dict | None:
     booking_dict = dict()
     booking_dict["showtime_id"] = showtime.uid
-    booking_dict["seats"] = seats
+    booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
     booking_dict["name"], booking_dict["age"], booking_dict["email"] = _ask_user_info()
     booking_dict["issued"] = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
     return booking_dict
@@ -101,16 +117,6 @@ def get_specific_bookings(path: str, showing) -> list:
             bookings.append(test_bookings)
             break
     return bookings
-
-def save_booking(path, booking):
-    print(booking)
-    """Saves showtimes to database file"""
-    with open(path + "bookings.json", "r") as book_f:
-        all_bookings = json.load(book_f)
-    with open(path + "bookings.json", "w") as book_f:
-        all_bookings.append(booking.to_dict())
-        json.dump(all_bookings, book_f, indent=4)
-
 
 def _ask_user_info() -> tuple[str, int, str]:
     while True: # Get name

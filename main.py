@@ -1,6 +1,7 @@
 import os
 import datetime as dt
 from dataclasses import dataclass
+from email.contentmanager import raw_data_manager
 from typing import ClassVar
 
 
@@ -246,7 +247,7 @@ def book_menu():
             case _:
                 raise NotImplemented
 
-def book_new_menu(): # Incomplete
+def book_new_menu():
     while True:
         user_choice = MenuSelector.dynamic_selector(
             "Select a scheduled showing:",
@@ -254,24 +255,7 @@ def book_new_menu(): # Incomplete
         if user_choice == "back":
             return
         showtime = cached_showings[int(user_choice) - 1]
-        if showtime.full:
-            print("This showing is full.")
-            pause_confirm()
-            return
-        seat_handler = seating.SeatHandler(showtime)
-        selected_seats = seat_handler.select_seats()
-        if not selected_seats:
-            print("Seat selection cancelled.")
-            return
-        booking_data = bookings.new_booking(showtime, selected_seats)
-        if not storage.payment(bookings.calc_total(pricing_data, booking_data)):
-            print("Payment cancelled.")
-            return
-        booking = bookings.Booking.from_dict(booking_data)
-        bookings.save_booking(data_path, booking)
-        print(f"Booking made successfully.\n"
-              f"{'-'*10} SAVE YOUR BOOKING ID {'-'*10}\nBooking ID: {booking.uid}\n{'-'*10} SAVE YOUR BOOKING ID {'-'*10}")
-        pause_confirm()
+        do_new_booking(showtime)
         return
 
 def movie_detail_menu():
@@ -465,6 +449,24 @@ def movie_pretty_print(movie: movies.Movie):
           f"Description: {movie.description}")
     pause_confirm()
 
+# Booking Functions----------
+def do_new_booking(showtime):
+    raw_seats = [seating.format2raw(seat) for seat in seating.select_seats(showtime)]
+    if not raw_seats:
+        print("Seat selection cancelled.")
+        return
+    print(raw_seats)
+    booking_data = bookings.new_booking(showtime, raw_seats)
+    cost = bookings.calc_total(pricing_data, booking_data)
+    if not storage.payment(cost):
+        print("Payment cancelled.")
+        return
+    booking_id = bookings.Booking.from_dict(booking_data, cost).save_to_database(data_path)
+    print(f"Booking made successfully.\n"
+          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
+          f"Booking ID: {booking_id}\n"
+          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}")
+    pause_confirm()
 
 
 # START
