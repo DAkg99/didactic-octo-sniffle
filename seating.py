@@ -2,7 +2,7 @@
     Tracks & presents seating data.
 """
 import os
-from threading import Timer
+import json
 
 def select_seats(showing) -> list:
     while True:
@@ -12,8 +12,9 @@ def select_seats(showing) -> list:
             return []
         render_map(seat_map(showing))
         print("Pick one or multiple space-separated seats.")
-        selection = input("Selection ('q' to cancel): ").strip().upper().split()
-        if selection == "Q":
+        selection = input("Selection ('q' to cancel): ").upper().strip().split()
+        print(selection)
+        if selection[0] == "Q":
             return []
         selection[:] = list(set(selection))  # Remove duplicates
         if seats_valid_check(selection, showing):

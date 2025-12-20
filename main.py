@@ -22,24 +22,19 @@ import storage
 # find a better way to put seats in json
 
 # Working on:
-# Booking
-## Seat decoder
-## Note: Remove 1-indexing from decoded seats. Only "encoded" i.e. formatted seats should have 1-indexing for num part.
-## Booking class (booking.py)
+
 
 # To-do:
 # All unimplemented main features
 # Schedule viewer pretty print
+# New booking pretty print and/or selection through schedule viewer.
 # Admin menu protection
 # Admin booking cancellation
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
 # Extra To-dos:
-# Get rid of dogwater text-centering function
-# Replace movie_pretty_print() with __repr__ method for Movie class
 # Check for duplicates in database, automatically remove them
-# Look up why it's probably not a good idea to do a dictionary where keys and values are the same
-# Make schedule viewer send user directly to new booking, with data of requested showtime
+# Instead of storing all bookings in memory, only store their ids for look-ups.
 # Colored terminal
 # Clear terminal between prompts
 # Prevent overlapping screenings (lol)
@@ -68,8 +63,7 @@ os.makedirs(data_path, exist_ok=True)
 for file_name in ["movies.json", "showtimes.json", "bookings.json"]:
     if not os.path.exists(data_path + file_name):
         with open(data_path + file_name, 'x') as new_file:
-            new_file.write("[{}]")
-
+            new_file.write("[]")
 # Load everything in
 storage.load_state(data_path)
 
@@ -455,7 +449,6 @@ def do_new_booking(showtime):
     if not raw_seats:
         print("Seat selection cancelled.")
         return
-    print(raw_seats)
     booking_data = bookings.new_booking(showtime, raw_seats)
     cost = bookings.calc_total(pricing_data, booking_data)
     if not storage.payment(cost):

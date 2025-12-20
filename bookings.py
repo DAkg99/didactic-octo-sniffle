@@ -75,6 +75,10 @@ class Booking:
             json.dump(all_bookings, book_f, indent=4)
         return self.uid
 
+def load_bookings(path):
+    """Loads bookings. Probably a bad idea to keep them all in memory."""
+    bookings_data = json.load(open(path+"bookings.json"))
+    [Booking.from_dict(booking_data) for booking_data in bookings_data]
 
 
 def new_booking(showtime, seats: list[tuple]) -> dict | None:

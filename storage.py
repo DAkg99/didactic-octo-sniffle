@@ -3,6 +3,8 @@
 """
 
 import datetime as dt
+
+import bookings
 import movies
 
 def payment(price: int):
@@ -25,6 +27,7 @@ def user_input_verified_date(prompt_override: str = "") -> dt.datetime | None:
 def load_state(path: str):
     movies.load_movies(path)
     movies.load_showtimes(path)
+    bookings.load_bookings(path)
 
 def save_state(path: str):
     movies.save_movies(path)
