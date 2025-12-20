@@ -93,7 +93,9 @@ def new_booking(showtime, seats: list[tuple]) -> dict | None:
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
     discount_data = pricing["discounts"]
-    price = (len(booking_data["seats"]) * pricing["price"]) * pricing["tax"]
+    print(movies.Showtime.current_items[booking_data["showtime_id"]])
+    base_price = pricing["pricing_tiers"][movies.Showtime.current_items[booking_data["showtime_id"]].pricing_tier]
+    price = len(booking_data["seats"]) * base_price * (100 + pricing["tax"] / 100)
     # Apply group discount
     if len(booking_data["seats"]) >= discount_data["group"][0]:
         price *= (100 - discount_data["group"][1]) / 100

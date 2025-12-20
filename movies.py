@@ -95,9 +95,9 @@ class Showtime:
     movie: Movie
     datetime: dt.datetime
     screen: int
-    language: str
-    price_tier: int
     attendees: int
+    language: str
+    pricing_tier: int
     uid: int
     bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
     __seat_layout: tuple = (15, 10)  # Rows, columns
@@ -115,7 +115,7 @@ class Showtime:
 
     def __repr__(self):
         return (f"Title: {self.movie}\nDate: {self.date}\nTime: {self.time}\nScreen: {self.screen}\n"
-                f"Availability: {self.attendees}/{self.__max_attendees}")
+                f"Language: {self.language}\nAvailability: {self.attendees}/{self.__max_attendees}")
 
     def __post_init__(self):  # Sets up ID, max attendee count, and adds itself to the list of showtimes.
         self.__verify_arrangement()
@@ -128,6 +128,9 @@ class Showtime:
         Showtime.current_items[self.uid] = self
         self.__max_attendees = self.__seat_layout[0] * self.__seat_layout[1]
         self.movie.showtime_add(self)
+
+    def __update_attendee_count(self):
+        self.attendees = len([seat for seat in [booking.seats for booking in self.bookings]])
 
     def __update_fullness_status(self):
         if self.attendees >= self.__max_attendees:
@@ -177,7 +180,7 @@ class Showtime:
             show_dict["screen"],
             show_dict["attendees"],
             show_dict["language"],
-            show_dict["price_tier"],
+            show_dict["pricing_tier"],
             show_dict.get("uid", 0),
             show_dict.get("bookings", list())
         )
@@ -189,18 +192,18 @@ class Showtime:
             "screen": self.screen,
             "attendees": self.attendees,
             "language": self.language,
-            "price_tier": self.price_tier,
+            "pricing_tier": self.pricing_tier,
             "uid": self.uid
         }
 
     def booking_new(self, booking):
         self.bookings.append(booking)
-        self.attendees += len(booking.seats)
+        self.__update_attendee_count()
         self.__update_fullness_status()
 
     def booking_remove(self, booking):
         self.bookings.remove(booking)
-        self.attendees -= len(booking.seats)
+        self.__update_attendee_count()
         self.__update_fullness_status()
 
     def temp_reserve_seats_new(self, seats: list):

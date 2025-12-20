@@ -13,7 +13,6 @@ def select_seats(showing) -> list:
         render_map(seat_map(showing))
         print("Pick one or multiple space-separated seats.")
         selection = input("Selection ('q' to cancel): ").upper().strip().split()
-        print(selection)
         if selection[0] == "Q":
             return []
         selection[:] = list(set(selection))  # Remove duplicates
@@ -101,4 +100,4 @@ def format2raw(seat: str) -> tuple:
 
 def raw2format(seat_raw: tuple) -> str:
     """Translate seat coordinates (C, R) into formatted string (AA00)"""
-    return f"{chr(65 + seat_raw[0] // 26)}{chr(65 + seat_raw[0] % 26)}{seat_raw[1]}"
+    return f"{chr(65 + seat_raw[0] // 26)}{chr(65 + seat_raw[0] % 26)}{seat_raw[1] + 1:02d}"

@@ -22,6 +22,9 @@ import storage
 # find a better way to put seats in json
 
 # Working on:
+# Fix price calculator.
+# Look up why showtime is printing when booking
+# Fix the ghost time/hours in showtime repr
 
 
 # To-do:
@@ -31,6 +34,7 @@ import storage
 # Admin menu protection
 # Admin booking cancellation
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
+# Different room sizes for different screens
 
 # Extra To-dos:
 # Check for duplicates in database, automatically remove them
@@ -43,7 +47,13 @@ import storage
 theater_name = "Testificate"
 # Theater discounts
 pricing_data = {
-    "price": 100,
+    "pricing_tiers": {
+        1: 60,
+        2: 100,
+        3: 140,
+        4: 180,
+        5: 220
+    },
     "tax": 20,
     "discounts": {
         "min_age": (16, 10),
@@ -122,7 +132,7 @@ class MenuSelector:
             options = self.options
         try:
             return next(iter(options[int(input(MenuSelector.prompt_for_number))].keys()))  # Return chosen key
-        except (NameError, TypeError, IndexError):
+        except (NameError, TypeError, IndexError, ValueError):
             return None
 
     def _get_page_options(self, page: int):
@@ -451,6 +461,7 @@ def do_new_booking(showtime):
         return
     booking_data = bookings.new_booking(showtime, raw_seats)
     cost = bookings.calc_total(pricing_data, booking_data)
+    print(f"Selected seats: {", ".join(seating.raw2format(raw_seat) for raw_seat in raw_seats)}")
     if not storage.payment(cost):
         print("Payment cancelled.")
         return
