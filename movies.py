@@ -59,6 +59,13 @@ class Movie:
             float(movie_dict["rating"]),
             movie_dict["uid"])
 
+    def short_title(self, limit: int = 10):
+        if limit <= 2:
+            raise ValueError("Limit too low")
+        if len(self.title) <= limit:
+            return self.title + (" " * (limit - len(self.title)))
+        return self.title[:limit - 2] + "…" + self.title[-1]
+
     def to_dict(self):
         return {
             "title": self.title,
@@ -114,8 +121,18 @@ class Showtime:
         return False
 
     def __repr__(self):
-        return (f"Title: {self.movie}\nDate: {self.date}\nTime: {self.time}\nScreen: {self.screen}\n"
-                f"Language: {self.language}\nAvailability: {self.attendees}/{self.__max_attendees}")
+        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"
+                f"{self.movie.short_title()} {self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
+                f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d} Lang: {self.language.title()})")
+
+
+
+    def short_represent(self) -> str:
+        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
+                f"{self.movie.title}: {self.date.strftime('%Y %b %d')} "  # Title: YYYY Mon DD
+                f"{self.time.strftime('%H:%M')} "  # HH:MM
+                f"({self.seat_rows * self.seat_cols - len(self.occupied_seats)} seats available)")  # X seats available
+
 
     def __post_init__(self):  # Sets up ID, max attendee count, and adds itself to the list of showtimes.
         self.__verify_arrangement()
@@ -148,8 +165,8 @@ class Showtime:
             raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
 
     @property
-    def date(self) -> dt.datetime:
-        return dt.datetime(self.datetime.year, self.datetime.month, self.datetime.day)
+    def date(self) -> dt.date:
+        return dt.date(self.datetime.year, self.datetime.month, self.datetime.day)
     @property
     def time(self) -> dt.time:
         return dt.time(self.datetime.hour, self.datetime.minute)
@@ -195,6 +212,7 @@ class Showtime:
             "pricing_tier": self.pricing_tier,
             "uid": self.uid
         }
+
 
     def booking_new(self, booking):
         self.bookings.append(booking)

@@ -23,9 +23,6 @@ import storage
 
 # Working on:
 # Fix price calculator.
-# Look up why showtime is printing when booking
-# Fix the ghost time/hours in showtime repr
-
 
 # To-do:
 # All unimplemented main features
