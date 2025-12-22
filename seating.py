@@ -1,8 +1,7 @@
 """
     Tracks & presents seating data.
 """
-import os
-import json
+from threading import Timer
 
 def select_seats(showing) -> list:
     while True:
@@ -10,41 +9,36 @@ def select_seats(showing) -> list:
             print("This showing is full.")
             input("[Enter to continue] ")
             return []
-        render_map(seat_map(showing))
+        render_map(get_seat_map(showing))
         print("Pick one or multiple space-separated seats.")
         selection = input("Selection ('q' to cancel): ").upper().strip().split()
-        if selection[0] == "Q":
+        if (not selection) or (selection[0] == "Q"):
             return []
         selection[:] = list(set(selection))  # Remove duplicates
-        if seats_valid_check(selection, showing):
-            break
-    return selection
+        if not is_seat_available(selection, showing):
+            input("[Enter to continue] ")  # Wait after error message is printed
+        else:
+            return selection
 
-
-
-def seat_map(showing):
+def get_seat_map(showing):
     """Generates a seat map for a given list of bookings for a showing"""
     new_map = [[0 for _ in range(showing.seat_rows)] for _ in range(showing.seat_cols)]
     for seat in showing.occupied_seats:
-        new_map[seat[0]][seat[1]] = 1  # Mark seat as filled on map
+        new_map[seat[1]][seat[0]] = 1  # Mark seat as filled on map
     return new_map
 
-def seats_valid_check(seats: list, showing) -> bool:
-    """Check if given seats are formatted right and are available."""
-    seats[:] = list(set(seats))  # Remove duplicates
+def is_seat_available(seats: list, showing) -> bool:
+    """Check if seat input is valid and available"""
     for seat in seats:
         if not (len(seat) == 4 and seat[0:2].isalpha() and seat[2:4].isnumeric()):
             print("Error: Invalid seat format. Please try again.\n(E.g.: AB03 AB04 AB05)")
-            input("[Enter to continue] ")
             return False
         seat_raw = format2raw(seat)
-        if not ((0 <= seat_raw[0] < showing.seat_cols) and (0 <= seat_raw[1] < showing.seat_rows)):
+        if not ((0 <= seat_raw[1] < showing.seat_cols) and (0 <= seat_raw[0] < showing.seat_rows)):
             print("Error: Seats do not exist. Please select a valid seat.")
-            input("[Enter to continue] ")
             return False
         if seat_raw in showing.occupied_seats:
             print("Error: One or more of the seats you've selected are no longer available. Please pick again.")
-            input("[Enter to continue] ")
             return False
     return True
 
@@ -93,6 +87,13 @@ def render_map(seating_map):
                 print()
             low_cols = high_cols
             high_cols += step_size
+
+def reserve_seats_temporary(seats: list, showing, seconds: int = 300):
+    """Reserve seats for a showing. Automatically release them after time interval (5 min by default)."""
+    reserve_id = showing.reserve_seats_add(seats)
+    Timer(seconds, showing.reserve_seats_remove, reserve_id)
+    return reserve_id
+
 
 def format2raw(seat: str) -> tuple:
     """Translate formatted seat string (AA00) into seat coordinates (C, R)"""

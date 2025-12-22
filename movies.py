@@ -4,6 +4,7 @@
 
 import json
 import datetime as dt
+import random
 from dataclasses import dataclass, field
 from typing import ClassVar, Self
 
@@ -125,15 +126,6 @@ class Showtime:
                 f"{self.movie.short_title()} {self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
                 f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d} Lang: {self.language.title()})")
 
-
-
-    def short_represent(self) -> str:
-        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.title}: {self.date.strftime('%Y %b %d')} "  # Title: YYYY Mon DD
-                f"{self.time.strftime('%H:%M')} "  # HH:MM
-                f"({self.seat_rows * self.seat_cols - len(self.occupied_seats)} seats available)")  # X seats available
-
-
     def __post_init__(self):  # Sets up ID, max attendee count, and adds itself to the list of showtimes.
         self.__verify_arrangement()
         if not self.uid:
@@ -184,7 +176,7 @@ class Showtime:
         return self.__max_attendees
     @property
     def occupied_seats(self) -> list:
-        occupied = list(self.__temporarily_reserved_seats.values())
+        occupied = [item for value in self.__temporarily_reserved_seats.values() for item in value]
         for booking in self.bookings:
             occupied += booking.seats
         return occupied
@@ -213,6 +205,11 @@ class Showtime:
             "uid": self.uid
         }
 
+    def short_represent(self) -> str:
+        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
+                f"{self.movie.title}: {self.date.strftime('%Y %b %d')} "  # Title: YYYY Mon DD
+                f"{self.time.strftime('%H:%M')} "  # HH:MM
+                f"({self.seat_rows * self.seat_cols - len(self.occupied_seats)} seats available)")  # X seats available
 
     def booking_new(self, booking):
         self.bookings.append(booking)
@@ -224,18 +221,21 @@ class Showtime:
         self.__update_attendee_count()
         self.__update_fullness_status()
 
-    def temp_reserve_seats_new(self, seats: list):
-        reserve_uid = 0
-        while True:  # Find the smallest available ID.
-            reserve_uid += 1
-            if not reserve_uid in self.__temporarily_reserved_seats.keys():
-                break
+    def reserve_seats_add(self, seats: list) -> str:
+        # Generate unique ID and reserve seats using that as they key. Returns key.
+        reserve_uid = self.__new_reserve_id()
         self.__temporarily_reserved_seats[reserve_uid] = seats
         return reserve_uid
 
-    def temp_reserve_seats_remove(self, reserve_uid: int):
-        if reserve_uid in self.__temporarily_reserved_seats:
+    def reserve_seats_remove(self, reserve_uid: str):
+        if reserve_uid in self.__temporarily_reserved_seats.keys():
             self.__temporarily_reserved_seats.pop(reserve_uid)
+
+    def __new_reserve_id(self):
+        uid_trial = f"{random.randint(1, 65535):04x}"
+        while uid_trial in self.__temporarily_reserved_seats.keys():
+            uid_trial = f"{random.randint(1, 65535):04x}"
+        return uid_trial
 
 
 def load_movies(path: str) -> list[Movie]:

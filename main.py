@@ -1,8 +1,8 @@
 import os
 import datetime as dt
 from dataclasses import dataclass
-from email.contentmanager import raw_data_manager
 from typing import ClassVar
+
 
 
 import bookings
@@ -452,23 +452,31 @@ def movie_pretty_print(movie: movies.Movie):
 
 # Booking Functions----------
 def do_new_booking(showtime):
+    """Make a new booking."""
+    # Select seats, convert them to tuples, reserve them.
     raw_seats = [seating.format2raw(seat) for seat in seating.select_seats(showtime)]
     if not raw_seats:
         print("Seat selection cancelled.")
         return
-    booking_data = bookings.new_booking(showtime, raw_seats)
-    cost = bookings.calc_total(pricing_data, booking_data)
-    print(f"Selected seats: {", ".join(seating.raw2format(raw_seat) for raw_seat in raw_seats)}")
-    if not storage.payment(cost):
+    reserve_id = seating.reserve_seats_temporary(raw_seats, showtime)
+    # Generate booking data and hand payment.
+    booking_data = bookings.new_booking(showtime, raw_seats, pricing_data)
+    _print_booking_info(showtime, raw_seats)
+    if not storage.payment(booking_data["cost"]):
+        showtime.reserve_seats_remove(reserve_id)  # Release reserved seats if no payment.
         print("Payment cancelled.")
         return
-    booking_id = bookings.Booking.from_dict(booking_data, cost).save_to_database(data_path)
+    # Generate ticket if everything is successful.
+    booking_id = bookings.generate_ticket(booking_data, data_path)
     print(f"Booking made successfully.\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
           f"Booking ID: {booking_id}\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}")
     pause_confirm()
 
+def _print_booking_info(showtime, raw_seats):
+    print(f"Movie {showtime.movie.title} at {showtime.date.strftime('%Y %b %d')} {showtime.time.strftime('%H:%M')}:\n"
+          f"Seats: {', '.join([seating.raw2format(raw_seat) for raw_seat in raw_seats])}")
 
 # START
 clear_terminal()

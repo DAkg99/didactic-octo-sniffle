@@ -9,7 +9,7 @@ import movies
 import random
 
 @dataclass(frozen=True)
-class Booking:
+class Ticket:
     ids: ClassVar[set] = set()
     showtime: movies.Showtime
     name: str
@@ -30,20 +30,15 @@ class Booking:
         if not self.uid:  # Get UID
             while True:
                 uid_trial = f"{random.randint(1, 4294967295):08x}"
-                if uid_trial not in Booking.ids:
+                if uid_trial not in Ticket.ids:
                     break
-            Booking.ids.add(uid_trial)
+            Ticket.ids.add(uid_trial)
             object.__setattr__(self, "uid", uid_trial)
     def __eq__(self, other):
         return self.__unique_attributes() == other.__unique_attributes()
 
     @classmethod
-    def from_dict(cls, book_dict: dict, price = None):
-        if not book_dict.get("cost"):
-            if not price:
-                raise TypeError("Cost attribute missing!")
-            else:
-                book_dict["cost"] = price
+    def from_dict(cls, book_dict: dict):
         return cls(
             movies.Showtime.current_items[book_dict["showtime_id"]],
             book_dict["name"],
@@ -78,15 +73,16 @@ class Booking:
 def load_bookings(path):
     """Loads bookings. Probably a bad idea to keep them all in memory."""
     bookings_data = json.load(open(path+"bookings.json"))
-    [Booking.from_dict(booking_data) for booking_data in bookings_data]
+    [Ticket.from_dict(booking_data) for booking_data in bookings_data]
 
 
-def new_booking(showtime, seats: list[tuple]) -> dict | None:
+def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict | None:
     booking_dict = dict()
     booking_dict["showtime_id"] = showtime.uid
     booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
     booking_dict["name"], booking_dict["age"], booking_dict["email"] = _ask_user_info()
     booking_dict["issued"] = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    booking_dict["cost"] = calc_total(pricing_data, booking_dict)
     return booking_dict
 
 # def cancel_booking(bookings: list, booking_id: str, seat_maps: dict) -> bool: ...
@@ -108,20 +104,10 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
         price *= (100 - discount_data["student"][1]) / 100
     return price
 
-
 def list_customer_bookings(bookings: list, email: str) -> list: ...
-def generate_ticket(booking: dict, directory: str) -> str: ...
 
-def get_specific_bookings(path: str, showing) -> list:
-    """Get all bookings for a specific showing."""
-    with (open(path + "bookings.json")) as book_f:
-        all_bookings = json.load(book_f)
-    bookings = []
-    for test_bookings in all_bookings:
-        if hash(showing) == test_bookings["hash_id"]:
-            bookings.append(test_bookings)
-            break
-    return bookings
+def generate_ticket(booking_data: dict, path: str) -> str:
+    return Ticket.from_dict(booking_data).save_to_database(path)
 
 def _ask_user_info() -> tuple[str, int, str]:
     while True: # Get name
