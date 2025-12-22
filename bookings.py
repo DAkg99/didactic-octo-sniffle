@@ -3,14 +3,14 @@
 """
 import json
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, Self
 import datetime as dt
 import movies
 import random
 
 @dataclass(frozen=True)
-class Ticket:
-    ids: ClassVar[set] = set()
+class Booking:
+    current_items: ClassVar[dict[str, Self]] = {}
     showtime: movies.Showtime
     name: str
     age: int
@@ -26,16 +26,19 @@ class Ticket:
         print(hash(self.__unique_attributes()))
         return hash(self.__unique_attributes())
     def __post_init__(self):
-        self.showtime.booking_new(self)  # Append to associated showtime
-        if not self.uid:  # Get UID
-            while True:
+        # Initialise UID if absent. Append to parent showtime and class list.
+        if not self.uid:
+            uid_trial = f"{random.randint(1, 4294967295):08x}"
+            while uid_trial in list(Booking.current_items.keys()):
                 uid_trial = f"{random.randint(1, 4294967295):08x}"
-                if uid_trial not in Ticket.ids:
-                    break
-            Ticket.ids.add(uid_trial)
             object.__setattr__(self, "uid", uid_trial)
+        Booking.current_items[self.uid] = self
+        self.showtime.booking_new(self)
     def __eq__(self, other):
         return self.__unique_attributes() == other.__unique_attributes()
+    def __repr__(self):
+        return (f"{self.showtime.short_represent()}\nCustomer: {self.name} ({self.email}) \nSeats: "
+                f"{' '.join([f'{chr(65 + seat[0] // 26)}{chr(65 + seat[0] % 26)}{seat[1] + 1:02d}' for seat in self.seats])}")
 
     @classmethod
     def from_dict(cls, book_dict: dict):
@@ -70,11 +73,22 @@ class Ticket:
             json.dump(all_bookings, book_f, indent=4)
         return self.uid
 
-def load_bookings(path):
-    """Loads bookings. Probably a bad idea to keep them all in memory."""
-    bookings_data = json.load(open(path+"bookings.json"))
-    [Ticket.from_dict(booking_data) for booking_data in bookings_data]
+    def delete_self(self):
+        Booking.current_items.pop(self.uid)
+        self.showtime.booking_remove(self)
+        del self
 
+
+def load_bookings(path):
+    bookings_raw_list = json.load(open(path+"bookings.json"))
+    for item in bookings_raw_list:
+        Booking.from_dict(item)
+    return list(Booking.current_items.values())
+
+def save_bookings(path):
+    """Saves showtimes to database file"""
+    with open(path+"bookings.json", "w") as bookings_f:
+        json.dump([booking.to_dict() for booking in Booking.current_items.values()], bookings_f, indent=4)
 
 def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     booking_dict = dict()
@@ -85,7 +99,30 @@ def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     booking_dict["cost"] = calc_total(pricing_data, booking_dict)
     return booking_dict
 
-# def cancel_booking(bookings: list, booking_id: str, seat_maps: dict) -> bool: ...
+def cancel_booking(booking_id: str, policy: dict) -> bool:
+    booking = Booking.current_items.get(booking_id, None)
+    if not booking:
+        print("Invalid booking ID.")
+        return False
+    hours_since_purchase = _timedelta_to_hours(dt.datetime.now() - booking.issued)
+    hours_til_showtime = _timedelta_to_hours(booking.showtime.datetime - dt.datetime.now())
+    # Check cases.
+    if input(f"{booking}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
+        print("Please enter a different booking ID.")
+        return False
+    if hours_since_purchase > policy["purchase_time_limit_hours"]:
+        print(f"No refund available: {policy['purchase_time_limit_hours']} hours have passed since purchase.")
+        return False
+    if hours_til_showtime < 0:
+        print(f"No refund available: Showing has already begun.")
+        return False
+    elif hours_til_showtime < policy["film_proximity_limit_hours"]:
+        print(f"No refund available: You can't get a refund for a movie which is "
+              f"about to begin in {policy['purchase_time_limit_hours']} hours")
+        return False
+    booking.delete_self()
+    print(f"{booking.cost}₺ has been refunded to your account.")
+    return True
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
     seat_count = len(booking_data["seats"].split(", "))
@@ -108,7 +145,12 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
 def list_customer_bookings(bookings: list, email: str) -> list: ...
 
 def generate_ticket(booking_data: dict, path: str) -> str:
-    return Ticket.from_dict(booking_data).save_to_database(path)
+    return Booking.from_dict(booking_data).save_to_database(path)
+
+def _timedelta_to_hours(delta: dt.timedelta) -> float:
+    return (((delta.days * 24) +
+            (delta.seconds / (60 * 60))) +
+            (delta.microseconds / (1000000 * 60 * 60)))
 
 def _ask_user_info() -> tuple[str, int, str]:
     while True: # Get name

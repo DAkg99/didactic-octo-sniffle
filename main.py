@@ -17,12 +17,10 @@ import storage
 # Done:
 # Main: Schedule viewer
 # Main: Movie details
-
-# Immediate Concerns:
-# find a better way to put seats in json
+# Main: New Booking
 
 # Working on:
-# Fix price calculator.
+# Main: Remove Booking
 
 # To-do:
 # All unimplemented main features
@@ -42,7 +40,7 @@ import storage
 
 # Theater name
 theater_name = "Testificate"
-# Theater discounts
+# Theater data
 pricing_data = {
     "pricing_tiers": {
         1: 60,
@@ -56,9 +54,14 @@ pricing_data = {
         "min_age": (16, 10),
         "max_age": (60, 10),
         "group": (5, 15),
-        "student": ("edu", 15)
-    }
+        "student": ("edu", 15)}
 }
+
+booking_refund_policy = {
+    "purchase_time_limit_hours": 72,  # Hours after purchase when ticket becomes non-refundable.
+    "film_proximity_limit_hours": 2   # Hours until movie when ticket becomes non-refundable.
+}
+
 # Database path
 data_path = "./data/"
 # Backup path
@@ -243,8 +246,12 @@ def book_menu():
                 # Placeholder
                 print("TO DO")
             case "remove_book":
-                # Placeholder
-                print("TO DO")
+                booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").strip().lower()
+                if (not booking_id) or (booking_id == (0 or "q" or "back")):
+                    continue
+                bookings.cancel_booking(booking_id, booking_refund_policy)
+                storage.save_state(data_path)
+                pause_confirm()
             case _:
                 raise NotImplemented
 
@@ -468,6 +475,7 @@ def do_new_booking(showtime):
         return
     # Generate ticket if everything is successful.
     booking_id = bookings.generate_ticket(booking_data, data_path)
+    storage.save_state(data_path)
     print(f"Booking made successfully.\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
           f"Booking ID: {booking_id}\n"
@@ -477,6 +485,8 @@ def do_new_booking(showtime):
 def _print_booking_info(showtime, raw_seats):
     print(f"Movie {showtime.movie.title} at {showtime.date.strftime('%Y %b %d')} {showtime.time.strftime('%H:%M')}:\n"
           f"Seats: {', '.join([seating.raw2format(raw_seat) for raw_seat in raw_seats])}")
+
+
 
 # START
 clear_terminal()

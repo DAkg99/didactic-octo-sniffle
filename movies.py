@@ -122,11 +122,13 @@ class Showtime:
         return False
 
     def __repr__(self):
-        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"
+        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
                 f"{self.movie.short_title()} {self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
-                f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d} Lang: {self.language.title()})")
+                f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d}/{self.__max_attendees} "
+                f"Lang: {self.language.title()})")
 
-    def __post_init__(self):  # Sets up ID, max attendee count, and adds itself to the list of showtimes.
+    def __post_init__(self):
+        # Sets up ID, max attendee count, and adds itself to the list of showtimes.
         self.__verify_arrangement()
         if not self.uid:
             self.uid = 0
@@ -206,10 +208,8 @@ class Showtime:
         }
 
     def short_represent(self) -> str:
-        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.title}: {self.date.strftime('%Y %b %d')} "  # Title: YYYY Mon DD
-                f"{self.time.strftime('%H:%M')} "  # HH:MM
-                f"({self.seat_rows * self.seat_cols - len(self.occupied_seats)} seats available)")  # X seats available
+        return (f"Showing: {self.movie.title} ({self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
+                f"Screen {self.screen} (language: {self.language.title()}))")
 
     def booking_new(self, booking):
         self.bookings.append(booking)

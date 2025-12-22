@@ -32,3 +32,4 @@ def load_state(path: str):
 def save_state(path: str):
     movies.save_movies(path)
     movies.save_showtimes(path)
+    bookings.save_bookings(path)
