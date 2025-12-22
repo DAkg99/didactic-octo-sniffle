@@ -15,12 +15,9 @@ import storage
 # import reports
 
 # Done:
-# Main: Schedule viewer
-# Main: Movie details
-# Main: Booking
-## Booking: New Booking
-## Booking: Remove Booking
-## Booking: View Booking
+# Main: Schedule menu
+# Main: Movie details menu
+# Main: Booking menu
 
 # Working on:
 
@@ -29,14 +26,16 @@ import storage
 # To-do:
 # All unimplemented main features
 # Schedule viewer pretty print
+# Differentiate "reserved" and "sold" in seat map. Also, maybe add "---screen---" as the first line to print.
 # New booking pretty print and/or selection through schedule viewer.
 # Admin menu protection
 # Admin booking cancellation
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
-# Different room sizes for different screens
+
 
 # Extra To-dos:
-# Check for duplicates in database, automatically remove them
+# Different room sizes for different screens
+# Check for duplicates in movie/booking database, automatically remove them
 # Instead of storing all bookings in memory, only store their ids for look-ups.
 # Colored terminal
 # Clear terminal between prompts
@@ -165,9 +164,9 @@ main_selector = MenuSelector(
 schedule_selector = MenuSelector(
     "How would you like to view the schedule?", [           # 1.2 Schedule Showings
         {"back": "[Go back]"},                              # BACK
-        {"title": "Showtimes of a specific movie"},         # Action
-        {"date": "All movies on a specific day"},           # Action
-        {"all": "All movies"}])                             # Action
+        {"title": "Showings of a specific movie"},          # Action
+        {"date": "Showings at a specific date"},            # Action
+        {"all": "All showings"}])                           # Action
 
 book_selector = MenuSelector(
     "Booking options:", [                                   # 1.3 Booking
