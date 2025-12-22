@@ -154,7 +154,7 @@ def _timedelta_to_hours(delta: dt.timedelta) -> float:
 
 def _ask_user_info() -> tuple[str, int, str]:
     while True: # Get name
-        name = (input("Enter your full name: "))
+        name = (input("Enter your full name: ")).strip().title()
         if not name:
             print("Name can't be blank")
             continue
