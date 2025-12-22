@@ -222,7 +222,7 @@ class Showtime:
         self.__update_fullness_status()
 
     def reserve_seats_add(self, seats: list) -> str:
-        # Generate unique ID and reserve seats using that as they key. Returns key.
+        # Generate unique reservation ID and save reserved seats with ID as the key. Key is returned.
         reserve_uid = self.__new_reserve_id()
         self.__temporarily_reserved_seats[reserve_uid] = seats
         return reserve_uid

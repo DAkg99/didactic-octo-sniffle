@@ -76,7 +76,7 @@ def load_bookings(path):
     [Ticket.from_dict(booking_data) for booking_data in bookings_data]
 
 
-def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict | None:
+def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     booking_dict = dict()
     booking_dict["showtime_id"] = showtime.uid
     booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
@@ -88,11 +88,12 @@ def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict | None
 # def cancel_booking(bookings: list, booking_id: str, seat_maps: dict) -> bool: ...
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
+    seat_count = len(booking_data["seats"].split(", "))
     discount_data = pricing["discounts"]
     base_price = pricing["pricing_tiers"][movies.Showtime.current_items[booking_data["showtime_id"]].pricing_tier]
-    price = len(booking_data["seats"]) * base_price * (100 + pricing["tax"] / 100)
+    price = seat_count * base_price * (100 + pricing["tax"]) / 100
     # Apply group discount
-    if len(booking_data["seats"]) >= discount_data["group"][0]:
+    if seat_count >= discount_data["group"][0]:
         price *= (100 - discount_data["group"][1]) / 100
     # Apply age discounts
     if booking_data["age"] <= discount_data["min_age"][0]:
