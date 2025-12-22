@@ -12,13 +12,13 @@ from typing import ClassVar, Self
 @dataclass(frozen=True)
 class Movie:
     """Mostly immutable class for movies. Class tracks all current instances in a dict."""
-    current_items: ClassVar[dict[str,Self]] = {}  # Dictionary keyed by id
+    current_items: ClassVar[dict[int,Self]] = {}  # Dictionary keyed by id
     title: str
     _genre: list[str]
     duration: dt.timedelta
     description: str
     rating: float  # !Mutable! Do not use for hashing.
-    uid: str  # Hash in hex form. Set automatically post-init
+    uid: int
     _showtimes: list = field(default_factory=list)  # Automatically populated when showtimes are loaded in.
 
     def __unique_attrs(self):
@@ -48,16 +48,16 @@ class Movie:
         return self._showtimes
 
     @classmethod
-    def from_dict(cls, movie_dict: dict[str, str]):
+    def from_dict(cls, movie_dict: dict[str, str | int | float | list]):
         """Create instance from dictionary."""
         if not movie_dict.get("uid"):
             movie_dict["uid"] = ""
         return cls(
             movie_dict["title"],
-            list(movie_dict["genre"]),
-            dt.timedelta(minutes=int((movie_dict["duration"]))),
+            movie_dict["genre"],
+            dt.timedelta(minutes=(movie_dict["duration"])),
             movie_dict["description"],
-            float(movie_dict["rating"]),
+            movie_dict["rating"],
             movie_dict["uid"])
 
     def short_title(self, limit: int = 10):
@@ -250,13 +250,41 @@ def save_movies(path: str) -> None:
     with open(path+"movies.json", "w") as movies_f:
         json.dump([movie.to_dict() for movie in Movie.current_items.values()], movies_f, indent=4)
 
-def add_movie(movies: list, movie_data: dict) -> list:
+def add_movie():
     """Adds a new movie to the list of movies"""
-    movies.append(movie_data)
-    return movies
+    movie_data = _prompt_user_for_movie()
+    new_movie = Movie.from_dict(movie_data)
+    if _duplicate_checker(new_movie):
+        abort = input("This movie already exists. Abort? (y/n): ").strip().lower()
+        if abort != "y":
+            remove_movie(new_movie)
+            print("New movie creation cancelled.")
+        else:
+            print("New movie created successfully.")
+    return
 
-def remove_movie(): # Todo
-    pass
+def remove_movie(movie: Movie):
+    # Simply delete the movie if there are no showings.
+    if not movie.showtimes:
+        Movie.current_items.pop(movie.uid)
+        print("Movie retired successfully.")
+        return
+    else:
+        # Check if there are any future showings that are also booked.
+        if any([(showtime.datetime > dt.datetime.now() and showtime.bookings != 0) for showtime in movie.showtimes]):
+            print(f"This movie has scheduled showings for the future that have already been booked.\n"
+                  f"Retiring the movie will retire these showtimes as well.\n"
+                  f"It is NOT recommended you retire this movie without refunding the customers first.")
+            confirm = (input("Retire movie? (y/n): ").lower().strip() == "y")
+        else:
+            print(f"Retiring this movie will discard its showtime/booking data.")
+            confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
+    if confirm:
+        for showtime in movie.showtimes:
+            remove_showtime(showtime, True)
+        Movie.current_items.pop(movie.uid)
+    else:
+        print("Movie deletion aborted.")
 
 def load_showtimes(path: str) -> list[Showtime]:
     """Loads showtime database file"""
@@ -269,7 +297,6 @@ def save_showtimes(path: str) -> None:
     """Saves showtimes to database file"""
     with open(path+"showtimes.json", "w") as showtimes_f:
         json.dump([showtime.to_dict() for showtime in Showtime.current_items.values()], showtimes_f, indent=4)
-
 
 def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> list:
     """Lists showtimes, with optional search parameter"""
@@ -289,7 +316,105 @@ def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> 
         return ["No showings found."]
     return requested_showtimes
 
-def schedule_showtime(showtime_data: dict) -> dict: pass # To-do. Note: Make sure to add showing to bookings.json
+def schedule_showtime(movie: Movie):
+     showtime_dict = _prompt_user_for_showtime(movie)
+     new_showtime = Showtime.from_dict(showtime_dict)
+     if _duplicate_checker(new_showtime):
+         abort = input("Identical showtime already exists. Abort? (y/n): ").strip().lower()
+         if abort != "y":
+             remove_showtime(new_showtime)
+             print("New showtime scheduling cancelled.")
+         else:
+             print("New showtime scheduled successfully.")
+     return
+
 
 def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ... # To-do.
 # Note: Make sure to update bookings.json
+
+def remove_showtime(showtime: Showtime, force: bool = False):
+    """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
+    # Simply delete if forced to, or if there are no bookings.
+    if force or (len(showtime.bookings) == 0):
+        for booking in showtime.bookings:
+            booking.delete_self()
+        showtime.movie.showtime_rem(showtime)
+        Showtime.current_items.pop(showtime.uid)
+        del showtime
+        return
+
+    # There are bookings; check if this showing has already occurred or not.
+    if showtime.datetime > dt.datetime.now():
+        print(f"There are active bookings for this showtime. Retiring the showtime will delete these bookings as well.\n"
+              f"It is NOT recommended you retire this showtime without refunding the customers first.")
+        confirm = (input("Retire showtime? (y/n): ").lower().strip() == "y")
+    else:
+        print(f"Retiring this showtime will discard its booking data.")
+        confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
+    if confirm:
+        for booking in showtime.bookings:
+            booking.delete_self()
+        showtime.movie.showtime_rem(showtime)
+        Showtime.current_items.pop(showtime.uid)
+        del showtime
+    else:
+        print("Movie deletion aborted.")
+
+def _prompt_user_for_movie() -> dict:
+    new_movie = dict()
+    new_movie["title"] = input("Movie title: ").strip().title()
+    new_movie["genre"] = input("Enter genre (space-separated if multiple): ").strip().split()
+    new_movie["description"] = input("Enter movie description: ").strip()
+    # Input duration and rating (must be type-checked).
+    while True:
+        duration = input("Movie duration (in integer minutes): ").strip()
+        try:
+            new_movie["duration"] = int(duration)
+            break
+        except (TypeError, ValueError, NameError):
+            print("Duration must be an integer with no special characters.")
+    while True:
+        rating = input("Enter movie rating out of 5: ")
+        try:
+            new_movie["rating"] = float(rating)
+            break
+        except (TypeError, ValueError, NameError):
+            print("Rating must be a decimal number.")
+    return new_movie
+
+def _prompt_user_for_showtime(movie) -> dict:
+    new_showtime = dict()
+    new_showtime["attendees"] = 0
+    new_showtime["movie"] = movie.uid
+    new_showtime["language"] = input("Enter movie language: ")
+    # Get screen number
+    while True:
+        try:
+            new_showtime["screen"] = int(input("Enter screen number: "))
+            break
+        except (ValueError, TypeError, NameError):
+            input("Invalid screen (must be an integer).")
+    # Get pricing_tier
+    while True:
+        try:
+            new_showtime["price_tier"] = int(input("Enter price tier (usually a number from 1 to 5): "))
+            break
+        except (ValueError, TypeError, NameError):
+            input("Invalid screen (must be an integer).")
+    # Get datetime:
+    while True:
+        try:
+            new_showtime["datetime"] = input("Enter date and time (YYYY-MM-DD HH:MM): ")
+            dt.datetime.strptime(new_showtime["datetime"] , "%Y-%m-%d %H:%M")
+        except (ValueError, TypeError, NameError):
+            input("Invalid date/time format.")
+
+def _duplicate_checker(test):
+    count = -1
+    for item in list(test.current_items.values()):
+        if test == item:
+            count += 1
+    if count > 0:
+        return True
+    else:
+        return False

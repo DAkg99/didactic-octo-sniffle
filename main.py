@@ -18,22 +18,25 @@ import storage
 # Main: Schedule menu
 # Main: Movie details menu
 # Main: Booking menu
+# Admin: Movies/Showtimes
 
 # Working on:
 
 
-
 # To-do:
-# All unimplemented main features
-# Schedule viewer pretty print
-# Differentiate "reserved" and "sold" in seat map. Also, maybe add "---screen---" as the first line to print.
-# New booking pretty print and/or selection through schedule viewer.
-# Admin menu protection
-# Admin booking cancellation
+# Admin: Movies/Showtimes: Update Showtime
+# Admin: Movies/Showtimes: Cancel bookings
+# Admin: Storage/Backups
+# Admin: Reporting/Analytics
+# Main: Booking menu: New: Differentiate "reserved" and "sold" in seat map.
+# Main: Schedule menu: Pretty Print
+# Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
 
 # Extra To-dos:
+# Main: Booking menu: New: Add a ----screen---- line to seat map.
+# Main: Schedule Viewer: Send user to create new booking.
 # Different room sizes for different screens
 # Check for duplicates in movie/booking database, automatically remove them
 # Instead of storing all bookings in memory, only store their ids for look-ups.
@@ -299,39 +302,43 @@ def admin_menu():
 def admin_movies_menu():
     """Admin menu to manage movies and showings"""
     while True:
+        storage.save_state(data_path)
         match admin_movies_selector.run():
             case "back":
                 return
             case "new_movie":
-                # movies.add_movie(...)
-                print("[Placeholder]")
-                input("Enter movie to add: ")
-                input("Schedule showings right away? (y/n) ")
-                print("Movie has been added")
+                movies.add_movie()
                 pause_confirm()
             case "rem_movie":
-                # movies.remove_movie(...)
-                print("[Placeholder]")
-                print("Scheduled showings for this movie will also be removed")
-                input("Enter movie to retire: ")
-                print("Movie has been retired")
+                admin_choice = MenuSelector.dynamic_selector(
+                    "Select a movie to retire:",
+                    cached_movies := [movie for movie in movies.Movie.current_items.values()])
+                if admin_choice == "back":
+                    continue
+                retired_movie = cached_movies[int(admin_choice) - 1]
+                movies.remove_movie(retired_movie)
                 pause_confirm()
             case "new_showing":
-                # movies.schedule_showtime(...)
-                print("[Placeholder]")
-                movies.list_showtimes(data_path, None)
-                input("Enter showtime to add: ")  # This will require a series of inputs
-                print("New showtime has been added to schedule")
+                admin_choice = MenuSelector.dynamic_selector(
+                    "Select a movie to create a showing for:",
+                    cached_movies := [movie for movie in movies.Movie.current_items.values()])
+                if admin_choice == "back":
+                    continue
+                showing_movie = cached_movies[int(admin_choice) - 1]
+                movies.schedule_showtime(showing_movie)
                 pause_confirm()
             case "rem_showing":
-                # movies.update_showtime
-                print("[Placeholder]")
-                movies.list_showtimes(data_path, None)
-                input("Enter showtime to remove: ")  # This will require a series of inputs
-                print("Showtime has been removed from schedule")
+                admin_choice = MenuSelector.dynamic_selector(
+                    "Select a showing to retire:",
+                    cached_showings := [showing for showing in movies.Showtime.current_items.values()])
+                if admin_choice == "back":
+                    continue
+                retired_showing = cached_showings[int(admin_choice) - 1]
+                movies.remove_showtime(retired_showing)
                 pause_confirm()
             case _:
                 raise NotImplemented
+
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
