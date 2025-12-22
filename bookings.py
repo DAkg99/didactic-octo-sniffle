@@ -142,7 +142,12 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
         price *= (100 - discount_data["student"][1]) / 100
     return price
 
-def list_customer_bookings(bookings: list, email: str) -> list: ...
+def list_customer_bookings(email: str) -> list:
+    booking_list = []
+    for booking in list(Booking.current_items.values()):
+        if booking.email == email:
+            booking_list.append(booking)
+    return booking_list
 
 def generate_ticket(booking_data: dict, path: str) -> str:
     return Booking.from_dict(booking_data).save_to_database(path)
@@ -153,19 +158,22 @@ def _timedelta_to_hours(delta: dt.timedelta) -> float:
             (delta.microseconds / (1000000 * 60 * 60)))
 
 def _ask_user_info() -> tuple[str, int, str]:
-    while True: # Get name
+    # Get name
+    while True:
         name = (input("Enter your full name: ")).strip().title()
         if not name:
             print("Name can't be blank")
             continue
         break
-    while True: # Get age
+    # Get age
+    while True:
         try:
             age = (int(input("Enter your age: ")))
             break
         except (TypeError, ValueError):
             print("Please enter an integer.")
-    while True: # Get email
+    # Get email
+    while True:
         email = input("Enter your email address: ").strip().lower()
         if email.find("@") == -1:
             print("Please enter a valid email address.")

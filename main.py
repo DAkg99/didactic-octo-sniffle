@@ -17,10 +17,14 @@ import storage
 # Done:
 # Main: Schedule viewer
 # Main: Movie details
-# Main: New Booking
+# Main: Booking
+## Booking: New Booking
+## Booking: Remove Booking
+## Booking: View Booking
 
 # Working on:
-# Main: Remove Booking
+
+
 
 # To-do:
 # All unimplemented main features
@@ -243,11 +247,13 @@ def book_menu():
             case "new_book":
                 book_new_menu()
             case "view_book":
-                # Placeholder
-                print("TO DO")
+                search_email = input("Enter your email ('q' to go back): ")
+                if search_email == "q":
+                    continue
+                print_list(bookings.list_customer_bookings(search_email), True)
             case "remove_book":
                 booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").strip().lower()
-                if (not booking_id) or (booking_id == (0 or "q" or "back")):
+                if booking_id == "q":
                     continue
                 bookings.cancel_booking(booking_id, booking_refund_policy)
                 storage.save_state(data_path)
@@ -383,8 +389,12 @@ def clear_terminal():
 def pause_confirm():
     input("[Enter to continue] ")
 
-def print_list(my_list):
-    [print(item) for item in my_list]
+def print_list(my_list, double_spaced = False):
+    if double_spaced:
+        [print(f"\n{item}") for item in my_list]
+        print()
+    else:
+        [print(item) for item in my_list]
     pause_confirm()
 
 def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
