@@ -3,22 +3,29 @@
 """
 from threading import Timer
 
-def select_seats(showing) -> list:
+def select_seats(showing) -> tuple[dict[str, list], str] | tuple[None, None]:
+    """Print map and select seats, return seats as (formatted, raw) tuple along with temp reservation ID."""
     while True:
         if showing.full:
             print("This showing is full.")
             input("[Enter to continue] ")
-            return []
+            return None, None
         render_map(get_seat_map(showing))
-        print("Pick one or multiple space-separated seats.")
-        selection = input("Selection ('q' to cancel): ").upper().strip().split()
-        if (not selection) or (selection[0] == "Q"):
-            return []
-        selection[:] = list(set(selection))  # Remove duplicates
-        if not is_seat_available(selection, showing):
+        print("Select one or multiple (space-separated) seats.")
+        formatted_seats = input("Selection ('q' to cancel): ").upper().strip().split()
+        if (not formatted_seats) or (formatted_seats[0] == "Q"):
+            print("Seat selection cancelled.")
+            return None, None
+        formatted_seats[:] = list(set(formatted_seats))  # Remove duplicates
+        if not is_seat_available(formatted_seats, showing):
             input("[Enter to continue] ")  # Wait after error message is printed
         else:
-            return selection
+            reserve_id = reserve_seats_temporary(tuple_seats := [format2raw(seat) for seat in formatted_seats], showing)
+            seats = {
+                "formatted": formatted_seats,
+                "tuple": tuple_seats
+            }
+            return seats, reserve_id
 
 def get_seat_map(showing):
     """Generates a seat map for a given list of bookings for a showing"""
@@ -88,7 +95,7 @@ def render_map(seating_map):
             low_cols = high_cols
             high_cols += step_size
 
-def reserve_seats_temporary(seats: list, showing, seconds: int = 300):
+def reserve_seats_temporary(seats: list[tuple], showing, seconds: int = 300) -> str:
     """Reserve seats for a showing. Automatically release them after time interval (5 min by default)."""
     reserve_id = showing.reserve_seats_add(seats)
     Timer(seconds, showing.reserve_seats_remove, reserve_id)

@@ -3,7 +3,7 @@
 """
 import json
 from dataclasses import dataclass, field
-from typing import ClassVar, Self
+from typing import ClassVar, Self, Callable
 import datetime as dt
 import movies
 import random
@@ -91,6 +91,7 @@ def save_bookings(path):
         json.dump([booking.to_dict() for booking in Booking.current_items.values()], bookings_f, indent=4)
 
 def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
+    # Set up booking data
     booking_dict = dict()
     booking_dict["showtime_id"] = showtime.uid
     booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
@@ -142,6 +143,20 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
         price *= (100 - discount_data["student"][1]) / 100
     return price
 
+def payment(cost: float, showtime, seats_formatted: list[str], reserve_id) -> bool:
+    """Make payment and release reserved seats."""
+    print(f"Movie {showtime.movie.title} at {showtime.date.strftime('%Y %b %d')} {showtime.time.strftime('%H:%M')}:\n"
+          f"Seats: {', '.join(seats_formatted)}")
+    print(f"Your total is {cost}₺")
+    if input("Enter payment details ('q' to cancel): ").lower().strip() == "q":
+        print("Payment cancelled.")
+        success = False
+    else:
+        print("Payment successful.")
+        success = True
+    showtime.reserve_seats_remove(reserve_id)
+    return success
+
 def list_customer_bookings(email: str) -> list:
     booking_list = []
     for booking in list(Booking.current_items.values()):
@@ -149,13 +164,18 @@ def list_customer_bookings(email: str) -> list:
             booking_list.append(booking)
     return booking_list
 
-def generate_ticket(booking_data: dict, path: str) -> str:
-    return Booking.from_dict(booking_data).save_to_database(path)
+def generate_ticket(booking_data: dict, path: str):
+    booking_id = Booking.from_dict(booking_data).save_to_database(path)
+    print(f"Booking made successfully.\n"
+          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
+          f"Booking ID: {booking_id}\n"
+          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}")
 
 def _timedelta_to_hours(delta: dt.timedelta) -> float:
     return (((delta.days * 24) +
             (delta.seconds / (60 * 60))) +
             (delta.microseconds / (1000000 * 60 * 60)))
+
 
 def _ask_user_info() -> tuple[str, int, str]:
     # Get name

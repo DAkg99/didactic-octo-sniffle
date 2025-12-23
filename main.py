@@ -14,6 +14,36 @@ import storage
 # import storage
 # import reports
 
+# Main Menu/
+# ├── Admin Menu/
+# │   └── ...
+# ├── Schedule Viewing Menu/
+# │   ├── Search by title
+# │   ├── Search by date
+# │   └── Show all
+# ├── Booking Menu/
+# │   ├── New Booking
+# │   ├── View Bookings
+# │   └── Delete Booking
+# └── View Movie Details
+#
+# Main Menu/
+# └── Admin Menu/
+#     ├── Movies & Showtimes Menu/
+#     │   ├── New Movie
+#     │   ├── Remove Movie
+#     │   ├── New Showtime
+#     │   ├── Edit Showtime
+#     │   └── Remove Showtime
+#     ├── Reports Menu/
+#     │   ├── Export to file
+#     │   ├── View occupancy
+#     │   ├── View revenue
+#     │   └── View most popular
+#     └── Backups Menu/
+#         └── Create Backup
+
+
 # Done:
 # Main: Schedule menu
 # Main: Movie details menu
@@ -21,8 +51,6 @@ import storage
 # Admin: Movies/Showtimes
 
 # Working on:
-# Admin: Movies/Showtimes: Update Showtime
-
 
 # To-do:
 # Admin: Movies/Showtimes: Cancel bookings
@@ -223,10 +251,7 @@ def main_menu():
             case "book":
                 book_menu()
             case "imdb":
-                movie = dynamic_select_movie("Select a movie to learn more about it:")
-                if not movie:
-                    continue
-                movie_pretty_print(movie)
+                movie_details_action()
             case _:
                 raise NotImplemented
 
@@ -237,37 +262,29 @@ def schedule_menu():
             case "back":
                 return
             case "title":
-                schedule_search_title()
+                if search_for := input(f"Enter movie title: "):
+                    print_list(movies.list_showtimes(data_path, search_for))
             case "date":
-                schedule_search_date()
+                if search_for := storage.user_input_verified_date():
+                    print_list(movies.list_showtimes(data_path, search_for))
             case "all":
-                schedule_search_all()
+                print_list(movies.list_showtimes(data_path))
             case _:
                 raise NotImplemented
 
 def book_menu():
     """Get user to view and manage bookings"""
     while True:
+        storage.save_state(data_path)
         match book_selector.run():
             case "back":
                 return
             case "new_book":
-                showing = dynamic_select_showtime("Select a scheduled showing:")
-                if not showing:
-                    continue
-                do_new_booking(showing)
-            case "view_book":
-                search_email = input("Enter your email ('q' to go back): ")
-                if search_email == "q":
-                    continue
-                print_list(bookings.list_customer_bookings(search_email), True)
+                new_booking_action()
+            case "view_book":  # ACT
+                view_booking_action()
             case "remove_book":
-                booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").strip().lower()
-                if booking_id == "q":
-                    continue
-                bookings.cancel_booking(booking_id, booking_refund_policy)
-                storage.save_state(data_path)
-                pause_confirm()
+                remove_booking_action()
             case _:
                 raise NotImplemented
 
@@ -293,37 +310,16 @@ def admin_movies_menu():
         match admin_movies_selector.run():
             case "back":
                 return
-            case "new_movie":  # ACTION: ADD Movie.
-                movies.add_movie()
-                pause_confirm()
-            case "rem_movie":  # ACTION: REMOVE Movie (+ showings/bookings).
-                movie = dynamic_select_movie("Select a movie to retire:")
-                if not movie:
-                    return
-                movies.remove_movie(movie)
-                pause_confirm()
-            case "new_showing":  # ACTION: ADD Showtime.
-                admin_choice = MenuSelector.dynamic_selector(
-                    "Select a movie to create a showing for:",
-                    cached_movies := [movie for movie in movies.Movie.current_items.values()])
-                if admin_choice == "back":
-                    continue
-                showing_movie = cached_movies[int(admin_choice) - 1]
-                movies.schedule_showtime(showing_movie)
-                pause_confirm()
-            case "edit_showing":  # ACTION: EDIT Showtime.
-                showing = dynamic_select_showtime("Select a showing to retire:")
-                if not showing:
-                    continue
-            case "rem_showing":  # ACTION: REMOVE Showtime.
-                admin_choice = MenuSelector.dynamic_selector(
-                    "Select a showing to retire:",
-                    cached_showings := [showing for showing in movies.Showtime.current_items.values()])
-                if admin_choice == "back":
-                    continue
-                retired_showing = cached_showings[int(admin_choice) - 1]
-                movies.remove_showtime(retired_showing)
-                pause_confirm()
+            case "new_movie":
+                admin_new_movie_action()
+            case "rem_movie":
+                admin_remove_movie_action()
+            case "new_showing":
+                admin_new_showing_action()
+            case "edit_showing":
+                admin_edit_showing_action()
+            case "rem_showing":
+                admin_remove_showing_action()
             case _:
                 raise NotImplemented
 
@@ -371,6 +367,79 @@ def admin_backups_menu():
                 raise NotImplemented
         pause_confirm()
 
+# Actions--------
+## Main Menu Actions----
+def movie_details_action():
+    movie = dynamic_select_movie("Select a movie to learn more about it:")
+    if not movie:
+        return
+    movie_pretty_print(movie)
+## Booking Actions-----
+def new_booking_action():
+    showing = dynamic_select_showtime("Select a scheduled showing:")
+    if not showing:
+        return
+    seats, reserve_id = seating.select_seats(showing)  # Select seats
+    if not seats:
+        return
+    booking_data = bookings.new_booking(showing, seats["tuple"], pricing_data)  # Generate booking data
+    if bookings.payment(booking_data["cost"], showing, seats["formatted"], reserve_id):
+        bookings.generate_ticket(booking_data, data_path)  # Generate ticket if payment success
+    pause_confirm()
+
+def view_booking_action():
+    search_email = input("Enter your email ('q' to go back): ").lower().strip()
+    if search_email == "q":
+        return
+    print_list(bookings.list_customer_bookings(search_email), True)
+
+def remove_booking_action():
+    booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").strip().lower()
+    if booking_id == "q":
+        return
+    bookings.cancel_booking(booking_id, booking_refund_policy)
+    pause_confirm()
+## Admin Movie Actions-----
+def admin_new_movie_action():
+    movies.add_movie()
+    pause_confirm()
+
+def admin_remove_movie_action():
+    movie = dynamic_select_movie("Select a movie to retire:")
+    if not movie:
+        return
+    movies.remove_movie(movie)
+    pause_confirm()
+
+def admin_new_showing_action():
+    admin_choice = MenuSelector.dynamic_selector(
+        "Select a movie to create a showing for:",
+        cached_movies := [movie for movie in movies.Movie.current_items.values()])
+    if admin_choice == "back":
+        return
+    showing_movie = cached_movies[int(admin_choice) - 1]
+    movies.schedule_showtime(showing_movie)
+    pause_confirm()
+
+def admin_edit_showing_action():
+    showing = dynamic_select_showtime("Select a showing to edit:")
+    if not showing:
+        return
+    movies.update_showtime(showing)
+    storage.save_state(data_path)
+    print(f"Updated showing: \n{showing}")
+    pause_confirm()
+
+def admin_remove_showing_action():
+    admin_choice = MenuSelector.dynamic_selector(
+        "Select a showing to retire:",
+        cached_showings := [showing for showing in movies.Showtime.current_items.values()])
+    if admin_choice == "back":
+        return
+    retired_showing = cached_showings[int(admin_choice) - 1]
+    movies.remove_showtime(retired_showing)
+    pause_confirm()
+
 
 # General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
@@ -390,7 +459,6 @@ def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
     if admin_choice == "back":
         return None
     return cached_showings[int(admin_choice) - 1]
-
 
 def clear_terminal():
     if os.name == "nt":
@@ -457,19 +525,6 @@ def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = 
     return string_chunks
 
 
-# Schedule Search Functions---------
-def schedule_search_title():
-    if search_for := input(f"Enter movie title: "):
-        print_list(movies.list_showtimes(data_path, search_for))
-
-def schedule_search_date():
-    if search_for := storage.user_input_verified_date():
-        print_list(movies.list_showtimes(data_path, search_for))
-
-def schedule_search_all():
-    print_list(movies.list_showtimes(data_path))
-
-
 # Movie Details Functions---------
 def movie_pretty_print(movie: movies.Movie):
     print(f"Title: {movie.title}\n"
@@ -479,34 +534,6 @@ def movie_pretty_print(movie: movies.Movie):
           f"Description: {movie.description}")
     pause_confirm()
 
-# Booking Functions----------
-def do_new_booking(showtime):
-    """Make a new booking."""
-    # Select seats, convert them to tuples, reserve them.
-    raw_seats = [seating.format2raw(seat) for seat in seating.select_seats(showtime)]
-    if not raw_seats:
-        print("Seat selection cancelled.")
-        return
-    reserve_id = seating.reserve_seats_temporary(raw_seats, showtime)
-    # Generate booking data and hand payment.
-    booking_data = bookings.new_booking(showtime, raw_seats, pricing_data)
-    _print_booking_info(showtime, raw_seats)
-    if not storage.payment(booking_data["cost"]):
-        showtime.reserve_seats_remove(reserve_id)  # Release reserved seats if no payment.
-        print("Payment cancelled.")
-        return
-    # Generate ticket if everything is successful.
-    booking_id = bookings.generate_ticket(booking_data, data_path)
-    storage.save_state(data_path)
-    print(f"Booking made successfully.\n"
-          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
-          f"Booking ID: {booking_id}\n"
-          f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}")
-    pause_confirm()
-
-def _print_booking_info(showtime, raw_seats):
-    print(f"Movie {showtime.movie.title} at {showtime.date.strftime('%Y %b %d')} {showtime.time.strftime('%H:%M')}:\n"
-          f"Seats: {', '.join([seating.raw2format(raw_seat) for raw_seat in raw_seats])}")
 
 
 

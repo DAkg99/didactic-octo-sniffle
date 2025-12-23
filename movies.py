@@ -182,11 +182,16 @@ class Showtime:
         for booking in self.bookings:
             occupied += booking.seats
         return occupied
+    @property
+    def editable_attribute_dict_keys(self) -> list:
+        return ["movie_id", "datetime", "screen", "language", "pricing_tier"]
+
+
 
     @classmethod
     def from_dict(cls, show_dict: dict):
         return cls(
-            Movie.current_items[show_dict["movie"]],
+            Movie.current_items[show_dict["movie_id"]],
             dt.datetime.strptime(show_dict["datetime"], "%Y-%m-%d %H:%M"),
             show_dict["screen"],
             show_dict["attendees"],
@@ -198,7 +203,7 @@ class Showtime:
 
     def to_dict(self):
         return {
-            "movie": self.movie.uid,
+            "movie_id": self.movie.uid,
             "datetime": self.datetime.strftime("%Y-%m-%d %H:%M"),
             "screen": self.screen,
             "attendees": self.attendees,
@@ -206,6 +211,17 @@ class Showtime:
             "pricing_tier": self.pricing_tier,
             "uid": self.uid
         }
+
+    def update_from_dict(self, data_dict: dict):
+        """Updates all values except bookings"""
+        self.movie = Movie.current_items[data_dict["movie_id"]]
+        self.datetime = dt.datetime.strptime(data_dict["datetime"], "%Y-%m-%d %H:%M")
+        self.screen = data_dict["screen"]
+        self.attendees = data_dict["attendees"]
+        self.language = data_dict["language"]
+        self.pricing_tier = data_dict["pricing_tier"]
+        self.uid = data_dict.get("uid", 0)
+
 
     def short_represent(self) -> str:
         return (f"Showing: {self.movie.title} ({self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
@@ -231,7 +247,7 @@ class Showtime:
         if reserve_uid in self.__temporarily_reserved_seats.keys():
             self.__temporarily_reserved_seats.pop(reserve_uid)
 
-    def __new_reserve_id(self):
+    def __new_reserve_id(self) -> str:
         uid_trial = f"{random.randint(1, 65535):04x}"
         while uid_trial in self.__temporarily_reserved_seats.keys():
             uid_trial = f"{random.randint(1, 65535):04x}"
@@ -252,7 +268,7 @@ def save_movies(path: str) -> None:
 
 def add_movie():
     """Adds a new movie to the list of movies"""
-    movie_data = _prompt_user_for_movie()
+    movie_data = _prompt_for_movie_data()
     new_movie = Movie.from_dict(movie_data)
     if _duplicate_checker(new_movie):
         abort = input("This movie already exists. Abort? (y/n): ").strip().lower()
@@ -266,9 +282,7 @@ def add_movie():
 def remove_movie(movie: Movie):
     # Simply delete the movie if there are no showings.
     if not movie.showtimes:
-        Movie.current_items.pop(movie.uid)
-        print("Movie retired successfully.")
-        return
+        confirm = True
     else:
         # Check if there are any future showings that are also booked.
         if any([(showtime.datetime > dt.datetime.now() and showtime.bookings != 0) for showtime in movie.showtimes]):
@@ -317,7 +331,7 @@ def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> 
     return requested_showtimes
 
 def schedule_showtime(movie: Movie):
-     showtime_dict = _prompt_user_for_showtime(movie)
+     showtime_dict = _prompt_for_showtime_data(movie)
      new_showtime = Showtime.from_dict(showtime_dict)
      if _duplicate_checker(new_showtime):
          abort = input("Identical showtime already exists. Abort? (y/n): ").strip().lower()
@@ -329,8 +343,12 @@ def schedule_showtime(movie: Movie):
      return
 
 
-def update_showtime(showtimes: list, showtime_id: str, updates: dict) -> dict: ... # To-do.
-# Note: Make sure to update bookings.json
+def update_showtime(showtime):
+    """Prompt user for new data and update showtime accordingly."""
+    updated_data = _prompt_for_updated_showtime_data(showtime)
+    showtime.update_from_dict(updated_data)
+
+
 
 def remove_showtime(showtime: Showtime, force: bool = False):
     """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
@@ -360,7 +378,7 @@ def remove_showtime(showtime: Showtime, force: bool = False):
     else:
         print("Movie deletion aborted.")
 
-def _prompt_user_for_movie() -> dict:
+def _prompt_for_movie_data() -> dict:
     new_movie = dict()
     new_movie["title"] = input("Movie title: ").strip().title()
     new_movie["genre"] = input("Enter genre (space-separated if multiple): ").strip().split()
@@ -382,10 +400,10 @@ def _prompt_user_for_movie() -> dict:
             print("Rating must be a decimal number.")
     return new_movie
 
-def _prompt_user_for_showtime(movie) -> dict:
+def _prompt_for_showtime_data(movie) -> dict:
     new_showtime = dict()
     new_showtime["attendees"] = 0
-    new_showtime["movie"] = movie.uid
+    new_showtime["movie_id"] = movie.uid
     new_showtime["language"] = input("Enter movie language: ")
     # Get screen number
     while True:
@@ -397,7 +415,7 @@ def _prompt_user_for_showtime(movie) -> dict:
     # Get pricing_tier
     while True:
         try:
-            new_showtime["price_tier"] = int(input("Enter price tier (usually a number from 1 to 5): "))
+            new_showtime["pricing_tier"] = int(input("Enter price tier (usually a number from 1 to 5): "))
             break
         except (ValueError, TypeError, NameError):
             input("Invalid screen (must be an integer).")
@@ -408,6 +426,33 @@ def _prompt_user_for_showtime(movie) -> dict:
             dt.datetime.strptime(new_showtime["datetime"] , "%Y-%m-%d %H:%M")
         except (ValueError, TypeError, NameError):
             input("Invalid date/time format.")
+
+def _prompt_for_updated_showtime_data(showtime) -> dict:
+    showtime_data = showtime.to_dict()
+    for key in showtime.editable_attribute_dict_keys:
+        while True:
+            print(f"Current {key.replace("_", " ").replace("datetime", "date time").upper()} "
+                  f"for showing: {showtime_data.get(key)}")
+            new_val = input(f"Enter new {key} or leave blank to keep current: ").strip()
+            if new_val:
+                if key == "datetime":
+                    try:
+                        dt.datetime.strptime(new_val, "%Y-%m-%d %H:%M")
+                        showtime_data[key] = new_val
+                    except (ValueError, TypeError):
+                        print("Please format the attribute attribute correctly (YYYY-MM-DD HH:MM).")
+                elif type(showtime_data[key]) == int:
+                    try:
+                        new_val = int(new_val)
+                        showtime_data[key] = new_val
+                    except (ValueError, TypeError):
+                        print("Please enter an integer.")
+                else:
+                    showtime_data[key] = new_val
+                break
+            else:
+                break
+    return showtime_data
 
 def _duplicate_checker(test):
     count = -1
