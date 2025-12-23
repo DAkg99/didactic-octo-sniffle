@@ -1,6 +1,7 @@
 """Analytic reporting and management"""
-import json
 import datetime as dt
+import json
+import os
 
 def occupancy_report(showtimes_list: list) -> dict:
     """Returns analytics in a dictionary."""
@@ -35,7 +36,11 @@ def occupancy_report(showtimes_list: list) -> dict:
     return data
 
 
-def revenue_summary(booking_list: list, period: tuple[dt.datetime, dt.datetime]) -> dict:
+def revenue_summary(booking_list: list, period: tuple[dt.datetime, dt.datetime] = None, showtime_list = None) -> dict:
+    if not period:  # Set a period if non given.
+        if not showtime_list:
+            showtime_list = []
+        period = (_auto_showtime_date_range(showtime_list))
     data = {
         "range": f"{min(period).strftime("%Y-%m-%d")} - {max(period).strftime("%Y-%m-%d")}",
         "total": 0.0,
@@ -66,6 +71,18 @@ def top_movies(showtimes_list: list, limit: int = 5) -> list:
     return_limit = len(movies_sorted) if len(movies_sorted) <= limit else limit
     return movies_sorted[:return_limit]
 
+def export_report(filename: str, showtimes_list: list, booking_list: list):
+    if os.path.exists(filename):
+        print("File already exists.")
+        return
+    export_data = dict()
+    export_data["occupancy"] = occupancy_report(showtimes_list)
+    export_data["revenue"] = revenue_summary(booking_list, None, showtimes_list)
+    export_data["top_movies"] = [movie.to_dict() for movie in top_movies(showtimes_list)]
+    with open(filename+".json", "w") as exp_file:
+        json.dump(export_data, exp_file, indent=4)
+        print(f"Exported data to {filename}.json")
+
 
 def _busiest_days_indexes(days_counter: list) -> list:
     """Receives array of 7 elements and returns the indexes of biggest elements. Returns index 7 if they're all zero."""
@@ -81,3 +98,12 @@ def _busiest_days_indexes(days_counter: list) -> list:
     if not indexes:
         indexes = [7]
     return indexes
+
+def _auto_showtime_date_range(showtime_list) -> tuple:
+    dates = [value.datetime for value in showtime_list]
+    try:
+        date1 = min(dates)
+        date2 = max(dates)
+    except ValueError:  # When Showtime is empty, default range to today
+        date1 = date2 = dt.datetime.now()
+    return date1, date2

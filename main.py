@@ -53,6 +53,7 @@ import reports
 
 # To-do:
 # Main: Booking menu: New: Differentiate "reserved" and "sold" in seat map.
+# Admin: Reporting/Analytics: Export: Disallow illegal file characters maybe.
 # Main: Schedule menu: Pretty Print
 # Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
@@ -68,6 +69,7 @@ import reports
 # Instead of storing all bookings in memory, only store their ids for look-ups.
 # Colored terminal
 # Clear terminal between prompts
+# Admin: Reporting/Analytics: Export: CSV
 # Prevent overlapping screenings (lol)
 
 # Theater name
@@ -223,10 +225,10 @@ admin_movies_selector = MenuSelector(
 admin_reports_selector = MenuSelector(
     "Analytic options:", [                                  # 1.1.2 Admin Reports
         {"back": "[Go back]"},                              # BACK
-        {"export": "Export all analytics to file"},         # Action (TO DO) (Note: reports.export_report())
-        {"occupancy": "View occupancy statistics"},         # Action (TO DO) (Note: reports.occupancy_report())
-        {"revenue": "View revenue summary"},                # Action (TO DO) (Note: reports.revenue_summary())
-        {"top_movies": "View the most popular 5 movies"}])  # Action (TO DO) (Note: reports.top_movies())
+        {"export": "Export all analytics to file"},         # Action
+        {"occupancy": "View occupancy statistics"},         # Action
+        {"revenue": "View revenue summary"},                # Action
+        {"top_movies": "View the most popular 5 movies"}])  # Action
 
 admin_backups_selector = MenuSelector(
     "Backup options:", [                                    # 1.1.3 Admin Backups
@@ -327,10 +329,7 @@ def admin_reports_menu():
             case "back":
                 return
             case "export":
-                # reports.export_report(...)
-                print("[Placeholder]")
-                print("Data exported to /path/file.json")
-                pause_confirm()
+                admin_reports_export_action()
             case "occupancy":
                 admin_reports_occupancy_action()
             case "revenue":
@@ -431,6 +430,11 @@ def admin_remove_showing_action():
     pause_confirm()
 
 ### Admin Reports Actions
+def admin_reports_export_action():
+    reports.export_report(input("filename:"), list(movies.Showtime.current_items.values()),
+                          list(bookings.Booking.current_items.values()))
+    pause_confirm()
+
 def admin_reports_occupancy_action():
     occupancy_data = reports.occupancy_report(list(movies.Showtime.current_items.values()))
     print_dict(occupancy_data)
@@ -446,14 +450,10 @@ def admin_report_revenue_action():
         date2 = storage.user_input_verified_date("date", "Enter second date: ")
         if not date2:
             return
+        revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), (date1, date2))
     else:
-        dates = [value.datetime for value in movies.Showtime.current_items.values()]
-        try:
-            date1 = min(dates)
-            date2 = max(dates)
-        except ValueError:  # When Showtime is empty, default range to today
-            date1 = date2 = dt.datetime.now()
-    revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), (date1, date2))
+        revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), None,
+                                               list(movies.Showtime.current_items.values()))
     print_dict(revenue_data)
     pause_confirm()
 
