@@ -21,10 +21,10 @@ import storage
 # Admin: Movies/Showtimes
 
 # Working on:
+# Admin: Movies/Showtimes: Update Showtime
 
 
 # To-do:
-# Admin: Movies/Showtimes: Update Showtime
 # Admin: Movies/Showtimes: Cancel bookings
 # Admin: Storage/Backups
 # Admin: Reporting/Analytics
@@ -37,6 +37,7 @@ import storage
 # Extra To-dos:
 # Main: Booking menu: New: Add a ----screen---- line to seat map.
 # Main: Schedule Viewer: Send user to create new booking.
+# Main: Schedule Viewer: Non-exact search for movie title.
 # Different room sizes for different screens
 # Check for duplicates in movie/booking database, automatically remove them
 # Instead of storing all bookings in memory, only store their ids for look-ups.
@@ -188,10 +189,11 @@ admin_selector = MenuSelector(
 admin_movies_selector = MenuSelector(
     "Movie options:", [                                     # 1.1.1 Admin Movies
         {"back": "[Go back]"},                              # BACK
-        {"new_movie": "Add a new movie"},                   # Action (TO DO) (Note: Ask to create new showing)
-        {"rem_movie": "Retire a movie"},                    # Action (TO DO) (Note: Remove current showings)
-        {"new_showing": "Add new showing to schedule"},     # Action (TO DO)
-        {"rem_showing": "Remove a showing from schedule"}]) # Action (TO DO)
+        {"new_movie": "Add a new movie"},                   # Action
+        {"rem_movie": "Retire a movie"},                    # Action
+        {"new_showing": "Add new showing to schedule"},     # Action
+        {"edit_showing": "Edit existing showing"},          # Action
+        {"rem_showing": "Remove a showing from schedule"}]) # Action
 
 admin_reports_selector = MenuSelector(
     "Analytic options:", [                                  # 1.1.2 Admin Reports
@@ -221,7 +223,10 @@ def main_menu():
             case "book":
                 book_menu()
             case "imdb":
-                movie_detail_menu()
+                movie = dynamic_select_movie("Select a movie to learn more about it:")
+                if not movie:
+                    continue
+                movie_pretty_print(movie)
             case _:
                 raise NotImplemented
 
@@ -247,7 +252,10 @@ def book_menu():
             case "back":
                 return
             case "new_book":
-                book_new_menu()
+                showing = dynamic_select_showtime("Select a scheduled showing:")
+                if not showing:
+                    continue
+                do_new_booking(showing)
             case "view_book":
                 search_email = input("Enter your email ('q' to go back): ")
                 if search_email == "q":
@@ -262,27 +270,6 @@ def book_menu():
                 pause_confirm()
             case _:
                 raise NotImplemented
-
-def book_new_menu():
-    while True:
-        user_choice = MenuSelector.dynamic_selector(
-            "Select a scheduled showing:",
-            cached_showings := [showing for showing in movies.list_showtimes(data_path)])
-        if user_choice == "back":
-            return
-        showtime = cached_showings[int(user_choice) - 1]
-        do_new_booking(showtime)
-        return
-
-def movie_detail_menu():
-    while True:
-        user_choice = MenuSelector.dynamic_selector(
-            "Select a movie to learn more about it:",
-            cached_movies := [movie for movie in movies.Movie.current_items.values()])
-        if user_choice == "back":
-            return
-        user_movie = cached_movies[int(user_choice) - 1]
-        movie_pretty_print(user_movie)
 
 def admin_menu():
     """Admin main menu"""
@@ -306,19 +293,16 @@ def admin_movies_menu():
         match admin_movies_selector.run():
             case "back":
                 return
-            case "new_movie":
+            case "new_movie":  # ACTION: ADD Movie.
                 movies.add_movie()
                 pause_confirm()
-            case "rem_movie":
-                admin_choice = MenuSelector.dynamic_selector(
-                    "Select a movie to retire:",
-                    cached_movies := [movie for movie in movies.Movie.current_items.values()])
-                if admin_choice == "back":
-                    continue
-                retired_movie = cached_movies[int(admin_choice) - 1]
-                movies.remove_movie(retired_movie)
+            case "rem_movie":  # ACTION: REMOVE Movie (+ showings/bookings).
+                movie = dynamic_select_movie("Select a movie to retire:")
+                if not movie:
+                    return
+                movies.remove_movie(movie)
                 pause_confirm()
-            case "new_showing":
+            case "new_showing":  # ACTION: ADD Showtime.
                 admin_choice = MenuSelector.dynamic_selector(
                     "Select a movie to create a showing for:",
                     cached_movies := [movie for movie in movies.Movie.current_items.values()])
@@ -327,7 +311,11 @@ def admin_movies_menu():
                 showing_movie = cached_movies[int(admin_choice) - 1]
                 movies.schedule_showtime(showing_movie)
                 pause_confirm()
-            case "rem_showing":
+            case "edit_showing":  # ACTION: EDIT Showtime.
+                showing = dynamic_select_showtime("Select a showing to retire:")
+                if not showing:
+                    continue
+            case "rem_showing":  # ACTION: REMOVE Showtime.
                 admin_choice = MenuSelector.dynamic_selector(
                     "Select a showing to retire:",
                     cached_showings := [showing for showing in movies.Showtime.current_items.values()])
@@ -338,7 +326,6 @@ def admin_movies_menu():
                 pause_confirm()
             case _:
                 raise NotImplemented
-
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
@@ -386,6 +373,25 @@ def admin_backups_menu():
 
 
 # General Purpose Functions---------
+def dynamic_select_movie(prompt: str) -> movies.Movie | None:
+    admin_choice = MenuSelector.dynamic_selector(
+        prompt,
+        cached_movies := list(movies.Movie.current_items.values())
+    )
+    if admin_choice == "back":
+        return None
+    return cached_movies[int(admin_choice) - 1]
+
+def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
+    admin_choice = MenuSelector.dynamic_selector(
+        prompt,
+        cached_showings := list(movies.Showtime.current_items.values())
+    )
+    if admin_choice == "back":
+        return None
+    return cached_showings[int(admin_choice) - 1]
+
+
 def clear_terminal():
     if os.name == "nt":
         os.system("cls")  # Windows
