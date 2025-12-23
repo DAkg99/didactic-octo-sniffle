@@ -7,12 +7,9 @@ from typing import ClassVar
 
 import bookings
 import movies
-import seating
 import storage
-# import seating
-# import bookings
-# import storage
-# import reports
+import seating
+import reports
 
 # Main Menu/
 # ├── Admin Menu/
@@ -51,11 +48,10 @@ import storage
 # Admin: Movies/Showtimes
 
 # Working on:
+# Admin: Reporting/Analytics
 
 # To-do:
-# Admin: Movies/Showtimes: Cancel bookings
 # Admin: Storage/Backups
-# Admin: Reporting/Analytics
 # Main: Booking menu: New: Differentiate "reserved" and "sold" in seat map.
 # Main: Schedule menu: Pretty Print
 # Admin: Passcode Protection
@@ -253,7 +249,7 @@ def main_menu():
             case "imdb":
                 movie_details_action()
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def schedule_menu():
     """Make user search through the schedule"""
@@ -270,7 +266,7 @@ def schedule_menu():
             case "all":
                 print_list(movies.list_showtimes(data_path))
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def book_menu():
     """Get user to view and manage bookings"""
@@ -286,7 +282,7 @@ def book_menu():
             case "remove_book":
                 remove_booking_action()
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def admin_menu():
     """Admin main menu"""
@@ -301,7 +297,7 @@ def admin_menu():
             case "backups":
                 admin_backups_menu()
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def admin_movies_menu():
     """Admin menu to manage movies and showings"""
@@ -321,7 +317,7 @@ def admin_movies_menu():
             case "rem_showing":
                 admin_remove_showing_action()
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
@@ -340,17 +336,14 @@ def admin_reports_menu():
                 print("Theatre is 100% booked")
                 pause_confirm()
             case "revenue":
-                # reports.revenue_summary(...)
-                print("[Placeholder]")
-                print("Theatre has made 1 brouzouf")
-                pause_confirm()
+                admin_report_revenue_action()
             case "top_movies":
                 # reports.top_movies(...)
                 print("[Placeholder]")
                 print(f"Most popular movie is")
                 pause_confirm()
             case _:
-                raise NotImplemented
+                raise NotImplementedError
 
 def admin_backups_menu():
     """Admin menu to export backups"""
@@ -364,7 +357,7 @@ def admin_backups_menu():
                 print("Backup saved to /path/file.json")
                 storage.save_state(data_path)  # DEBUG
             case _:
-                raise NotImplemented
+                raise NotImplementedError
         pause_confirm()
 
 # Actions--------
@@ -374,7 +367,8 @@ def movie_details_action():
     if not movie:
         return
     movie_pretty_print(movie)
-## Booking Actions-----
+
+### Booking Actions-----
 def new_booking_action():
     showing = dynamic_select_showtime("Select a scheduled showing:")
     if not showing:
@@ -399,6 +393,7 @@ def remove_booking_action():
         return
     bookings.cancel_booking(booking_id, booking_refund_policy)
     pause_confirm()
+
 ## Admin Movie Actions-----
 def admin_new_movie_action():
     movies.add_movie()
@@ -440,6 +435,14 @@ def admin_remove_showing_action():
     movies.remove_showtime(retired_showing)
     pause_confirm()
 
+### Admin Reports Actions
+def admin_report_revenue_action():
+    print("Please provide the range of dates you would like to query.")
+    date1 = storage.user_input_verified_date("date", "Enter first date: ")
+    date2 = storage.user_input_verified_date("date", "Enter second date: ")
+    revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), (date1, date2))
+    print_dict(revenue_data)
+    pause_confirm()
 
 # General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
@@ -476,6 +479,20 @@ def print_list(my_list, double_spaced = False):
     else:
         [print(item) for item in my_list]
     pause_confirm()
+
+def print_dict(my_dict: dict, double_spaced: bool = False, key_char_limit: int = 15):
+    if double_spaced:
+        [print(f"\n{text_padding_shortening(key.title(), key_char_limit)}:\t{value}") for key, value in my_dict.items()]
+        print()
+    else:
+        [print(f"{text_padding_shortening(key.title(), key_char_limit)}:\t{value}") for key, value in my_dict.items()]
+
+def text_padding_shortening(my_string: str, char_limit: int) -> str:
+    if char_limit <= 2:
+        raise ValueError("Limit too low")
+    if len(my_string) <= char_limit:
+        return my_string + (" " * (char_limit - len(my_string)))
+    return my_string[:char_limit - 2] + "…" + my_string[-1]
 
 def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
     """

@@ -3,7 +3,7 @@
 """
 import json
 from dataclasses import dataclass, field
-from typing import ClassVar, Self, Callable
+from typing import ClassVar, Self
 import datetime as dt
 import movies
 import random
