@@ -194,7 +194,7 @@ class Showtime:
             Movie.current_items[show_dict["movie_id"]],
             dt.datetime.strptime(show_dict["datetime"], "%Y-%m-%d %H:%M"),
             show_dict["screen"],
-            show_dict["attendees"],
+            0,
             show_dict["language"],
             show_dict["pricing_tier"],
             show_dict.get("uid", 0),
