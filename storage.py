@@ -27,11 +27,11 @@ def user_input_verified_date(mode: str = "datetime", prompt_override: str = "") 
         case _:
             raise ValueError(f"invalid mode: {mode}")
     # Branchless conditional to determine prompt string, followed by loop to get valid answer from user
-    prompt = (f"Enter date ({user_help_string}): " * bool(not prompt_override)
+    prompt = (f"Enter date: " * bool(not prompt_override)
               + prompt_override * bool(prompt_override))
     while True:
-        print(prompt)
-        user_in = input(f"(Type 'now' to enter today's date) ('q' or blank to cancel): ").lower().strip()
+        print(f"Date format: {user_help_string} | Type 'now' to get the current date | 'q' or blank to cancel")
+        user_in = input(prompt).lower().strip()
         if (not user_in) or (user_in == "q"):
             return None
         elif user_in == "now":

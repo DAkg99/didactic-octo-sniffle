@@ -46,16 +46,17 @@ import reports
 # Main: Movie details menu
 # Main: Booking menu
 # Admin: Movies/Showtimes
-
-# Working on:
 # Admin: Reporting/Analytics
 
-# To-do:
+# Working on:
 # Admin: Storage/Backups
+
+# To-do:
 # Main: Booking menu: New: Differentiate "reserved" and "sold" in seat map.
 # Main: Schedule menu: Pretty Print
 # Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
+# Move state_save functions to end of action functions. Maybe state should be loaded before certain actions also.
 
 
 # Extra To-dos:
@@ -331,17 +332,11 @@ def admin_reports_menu():
                 print("Data exported to /path/file.json")
                 pause_confirm()
             case "occupancy":
-                # reports.occupancy_report(...)
-                print("[Placeholder]")
-                print("Theatre is 100% booked")
-                pause_confirm()
+                admin_reports_occupancy_action()
             case "revenue":
                 admin_report_revenue_action()
             case "top_movies":
-                # reports.top_movies(...)
-                print("[Placeholder]")
-                print(f"Most popular movie is")
-                pause_confirm()
+                admin_report_top_action()
             case _:
                 raise NotImplementedError
 
@@ -436,12 +431,34 @@ def admin_remove_showing_action():
     pause_confirm()
 
 ### Admin Reports Actions
+def admin_reports_occupancy_action():
+    occupancy_data = reports.occupancy_report(list(movies.Showtime.current_items.values()))
+    print_dict(occupancy_data)
+    pause_confirm()
+
 def admin_report_revenue_action():
-    print("Please provide the range of dates you would like to query.")
-    date1 = storage.user_input_verified_date("date", "Enter first date: ")
-    date2 = storage.user_input_verified_date("date", "Enter second date: ")
+    mode = input("Enter date range manually, or automatically set widest possible range? (m/a): ").lower().strip()
+    if mode == "m":
+        print("Please provide the range of dates you would like to query.")
+        date1 = storage.user_input_verified_date("date", "Enter first date: ")
+        if not date1:
+            return
+        date2 = storage.user_input_verified_date("date", "Enter second date: ")
+        if not date2:
+            return
+    else:
+        dates = [value.datetime for value in movies.Showtime.current_items.values()]
+        try:
+            date1 = min(dates)
+            date2 = max(dates)
+        except ValueError:  # When Showtime is empty, default range to today
+            date1 = date2 = dt.datetime.now()
     revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), (date1, date2))
     print_dict(revenue_data)
+    pause_confirm()
+
+def admin_report_top_action():
+    print_list(reports.top_movies(list(movies.Showtime.current_items.values())))
     pause_confirm()
 
 # General Purpose Functions---------
@@ -480,12 +497,14 @@ def print_list(my_list, double_spaced = False):
         [print(item) for item in my_list]
     pause_confirm()
 
-def print_dict(my_dict: dict, double_spaced: bool = False, key_char_limit: int = 15):
+def print_dict(my_dict: dict, double_spaced: bool = False, dynamic_key_char_limit = True, key_char_limit: int = 20):
+    if dynamic_key_char_limit:
+        key_char_limit = max([len(key) for key in my_dict])
     if double_spaced:
-        [print(f"\n{text_padding_shortening(key.title(), key_char_limit)}:\t{value}") for key, value in my_dict.items()]
+        [print(f"\n{text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
         print()
     else:
-        [print(f"{text_padding_shortening(key.title(), key_char_limit)}:\t{value}") for key, value in my_dict.items()]
+        [print(f"{text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
 
 def text_padding_shortening(my_string: str, char_limit: int) -> str:
     if char_limit <= 2:
