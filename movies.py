@@ -246,7 +246,7 @@ class Showtime:
             raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
 
 
-
+# Movie functions
 def load_movies(path: str) -> list[Movie]:
     """Returns movie database as list"""
     movies_raw_list = json.load(open(path+"movies.json"))
@@ -291,6 +291,7 @@ def remove_movie(movie: Movie):
     else:
         print("Movie deletion aborted.")
 
+# Showtime functions
 def load_showtimes(path: str) -> list[Showtime]:
     """Loads showtime database file"""
     showtimes_raw_list = json.load(open(path + "showtimes.json"))
@@ -303,24 +304,6 @@ def save_showtimes(path: str) -> None:
     with open(path+"showtimes.json", "w") as showtimes_f:
         json.dump([showtime.to_dict() for showtime in Showtime.current_items.values()], showtimes_f, indent=4)
 
-def list_showtimes(search_value: str | dt.datetime | None = None) -> list:
-    """Lists showtimes, with optional search parameter"""
-    showtimes = list(Showtime.current_items.values())
-    if not search_value:
-        return showtimes
-    requested_showtimes = []
-    if isinstance(search_value,dt.datetime):
-        for item in showtimes:
-            if item.datetime.date == search_value:
-                requested_showtimes.append(item)
-    else:
-        for item in showtimes:
-            if item.movie.title == search_value:
-                requested_showtimes.append(item)
-    if not requested_showtimes:
-        return ["No showings found."]
-    return requested_showtimes
-
 def schedule_showtime(movie: Movie):
     showtime_dict = _prompt_for_showtime_data(movie)
     new_showtime = Showtime.from_dict(showtime_dict)
@@ -332,12 +315,6 @@ def schedule_showtime(movie: Movie):
             return
     print("New showtime scheduled successfully.")
     return
-
-def update_showtime(showtime):
-    """Prompt user for new data and update showtime accordingly."""
-    updated_data = _prompt_for_updated_showtime_data(showtime)
-    showtime.update_from_dict(updated_data)
-    print(f"Updated showing: \n{showtime}")
 
 def remove_showtime(showtime: Showtime, force: bool = False):
     """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
@@ -367,6 +344,32 @@ def remove_showtime(showtime: Showtime, force: bool = False):
     else:
         print("Movie deletion aborted.")
 
+def update_showtime(showtime):
+    """Prompt user for new data and update showtime accordingly."""
+    updated_data = _prompt_for_updated_showtime_data(showtime)
+    showtime.update_from_dict(updated_data)
+    print(f"Updated showing: \n{showtime}")
+
+def list_showtimes(search_value: str | dt.datetime | None = None) -> list:
+    """Lists showtimes, with optional search parameter"""
+    showtimes = list(Showtime.current_items.values())
+    if not search_value:
+        return showtimes
+    requested_showtimes = []
+    if isinstance(search_value,dt.datetime):
+        for item in showtimes:
+            if item.datetime.date() == search_value.date():
+                requested_showtimes.append(item)
+    else:
+        for item in showtimes:
+            if item.movie.title == search_value:
+                requested_showtimes.append(item)
+    if not requested_showtimes:
+        return ["No showings found."]
+    return requested_showtimes
+
+
+# Helper functions--------
 def _prompt_for_movie_data() -> dict:
     new_movie = dict()
     new_movie["title"] = input("Movie title: ").strip().title()
