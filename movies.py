@@ -275,8 +275,8 @@ def add_movie():
         if abort != "y":
             remove_movie(new_movie)
             print("New movie creation cancelled.")
-        else:
-            print("New movie created successfully.")
+            return
+    print("New movie created successfully.")
     return
 
 def remove_movie(movie: Movie):
@@ -284,19 +284,17 @@ def remove_movie(movie: Movie):
     if not movie.showtimes:
         confirm = True
     else:
-        # Check if there are any future showings that are also booked.
-        if any([(showtime.datetime > dt.datetime.now() and showtime.bookings != 0) for showtime in movie.showtimes]):
-            print(f"This movie has scheduled showings for the future that have already been booked.\n"
-                  f"Retiring the movie will retire these showtimes as well.\n"
-                  f"It is NOT recommended you retire this movie without refunding the customers first.")
-            confirm = (input("Retire movie? (y/n): ").lower().strip() == "y")
-        else:
-            print(f"Retiring this movie will discard its showtime/booking data.")
-            confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
+        print("WARNING: This movie has associated showtimes, which will be deleted alongside it. "
+              "This might affect your analytics.")
+        if any([(showing.datetime > dt.datetime.now() and showing.attendees != 0) for showing in movie.showtimes]):
+            print("WARNING: This movie has future showtimes which have already been booked. It is NOT recommended to "
+                  "retire this movie without refunding the customers first.")
+        confirm = (input("Retire movie? (y/n): ").lower().strip() == "y")
     if confirm:
-        for showtime in movie.showtimes:
+        for showtime in movie.showtimes[::-1]:
             remove_showtime(showtime, True)
         Movie.current_items.pop(movie.uid)
+        print("Movie deleted.")
     else:
         print("Movie deletion aborted.")
 
@@ -331,30 +329,28 @@ def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> 
     return requested_showtimes
 
 def schedule_showtime(movie: Movie):
-     showtime_dict = _prompt_for_showtime_data(movie)
-     new_showtime = Showtime.from_dict(showtime_dict)
-     if _duplicate_checker(new_showtime):
-         abort = input("Identical showtime already exists. Abort? (y/n): ").strip().lower()
-         if abort != "y":
-             remove_showtime(new_showtime)
-             print("New showtime scheduling cancelled.")
-         else:
-             print("New showtime scheduled successfully.")
-     return
-
+    showtime_dict = _prompt_for_showtime_data(movie)
+    new_showtime = Showtime.from_dict(showtime_dict)
+    if _duplicate_checker(new_showtime):
+        abort = input("Identical showtime already exists. Abort? (y/n): ").strip().lower()
+        if abort != "y":
+            remove_showtime(new_showtime)
+            print("New showtime scheduling cancelled.")
+            return
+    print("New showtime scheduled successfully.")
+    return
 
 def update_showtime(showtime):
     """Prompt user for new data and update showtime accordingly."""
     updated_data = _prompt_for_updated_showtime_data(showtime)
     showtime.update_from_dict(updated_data)
-
-
+    print(f"Updated showing: \n{showtime}")
 
 def remove_showtime(showtime: Showtime, force: bool = False):
     """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
-    # Simply delete if forced to, or if there are no bookings.
+    # Simply delete if forced to, or if there are no bookings to worry about.
     if force or (len(showtime.bookings) == 0):
-        for booking in showtime.bookings:
+        for booking in showtime.bookings[::-1]:
             booking.delete_self()
         showtime.movie.showtime_rem(showtime)
         Showtime.current_items.pop(showtime.uid)

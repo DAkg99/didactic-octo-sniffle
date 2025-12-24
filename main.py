@@ -42,22 +42,23 @@ import reports
 
 
 # Done:
-# Main: Schedule menu
-# Main: Movie details menu
-# Main: Booking menu
-# Admin: Movies/Showtimes
-# Admin: Reporting/Analytics
+# Main: Schedule Viewing
+# Main: Movie Details
+# Main: Booking
+# Admin: Movies & Showtimes
+# Admin: Reporting & Analytics
+# Admin: Storage & Backups
 
 # Working on:
-# Admin: Storage/Backups
 
 # To-do:
-# Main: Booking menu: New: Differentiate "reserved" and "sold" in seat map.
-# Admin: Reporting/Analytics: Export: Disallow illegal file characters maybe.
-# Main: Schedule menu: Pretty Print
+# Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
+# Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
+# Main: Booking: New: Differentiate "reserved" and "sold" in seat map.
+# Admin: Reporting & Analytics: Export: Disallow illegal file characters maybe.
+# Main: Schedule Viewing: Pretty Print
 # Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
-# Move state_save functions to end of action functions. Maybe state should be loaded before certain actions also.
 
 
 # Extra To-dos:
@@ -70,7 +71,6 @@ import reports
 # Colored terminal
 # Clear terminal between prompts
 # Admin: Reporting/Analytics: Export: CSV
-# Prevent overlapping screenings (lol)
 
 # Theater name
 theater_name = "Testificate"
@@ -233,8 +233,8 @@ admin_reports_selector = MenuSelector(
 admin_backups_selector = MenuSelector(
     "Backup options:", [                                    # 1.1.3 Admin Backups
         {"back": "[Go back]"},                              # BACK
-        {"save_backup": "Create a manual backup of data"}]) # Action (TO DO) (Note: storage.backup_state())
-        #{"": ""},                                            (TO DO: View, restore, delete backups)
+        {"save_backup": "Create a manual backup of data"},  # Action
+        {"load_backup": "Load a saved backup file."}])      # Action
         #{"": ""},
         #{"": ""}])
 
@@ -251,6 +251,7 @@ def main_menu():
                 book_menu()
             case "imdb":
                 movie_details_action()
+                pause_confirm()
             case _:
                 raise NotImplementedError
 
@@ -270,11 +271,11 @@ def schedule_menu():
                 print_list(movies.list_showtimes(data_path))
             case _:
                 raise NotImplementedError
+        pause_confirm()
 
 def book_menu():
     """Get user to view and manage bookings"""
     while True:
-        storage.save_state(data_path)
         match book_selector.run():
             case "back":
                 return
@@ -286,6 +287,8 @@ def book_menu():
                 remove_booking_action()
             case _:
                 raise NotImplementedError
+        storage.save_state(data_path)
+        pause_confirm()
 
 def admin_menu():
     """Admin main menu"""
@@ -305,7 +308,6 @@ def admin_menu():
 def admin_movies_menu():
     """Admin menu to manage movies and showings"""
     while True:
-        storage.save_state(data_path)
         match admin_movies_selector.run():
             case "back":
                 return
@@ -321,6 +323,8 @@ def admin_movies_menu():
                 admin_remove_showing_action()
             case _:
                 raise NotImplementedError
+        pause_confirm()
+        storage.save_state(data_path)
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
@@ -338,6 +342,7 @@ def admin_reports_menu():
                 admin_report_top_action()
             case _:
                 raise NotImplementedError
+        pause_confirm()
 
 def admin_backups_menu():
     """Admin menu to export backups"""
@@ -346,13 +351,14 @@ def admin_backups_menu():
             case "back":
                 return
             case "save_backup":
-                # storage.backup_state(...)
-                print("[Placeholder]")
-                print("Backup saved to /path/file.json")
-                storage.save_state(data_path)  # DEBUG
+                storage.backup_state(backup_path)
+            case "load_backup":
+                storage.load_backup(backup_path, data_path)
             case _:
                 raise NotImplementedError
+        storage.save_state(data_path)
         pause_confirm()
+
 
 # Actions--------
 ## Main Menu Actions----
@@ -373,7 +379,6 @@ def new_booking_action():
     booking_data = bookings.new_booking(showing, seats["tuple"], pricing_data)  # Generate booking data
     if bookings.payment(booking_data["cost"], showing, seats["formatted"], reserve_id):
         bookings.generate_ticket(booking_data, data_path)  # Generate ticket if payment success
-    pause_confirm()
 
 def view_booking_action():
     search_email = input("Enter your email ('q' to go back): ").lower().strip()
@@ -386,19 +391,16 @@ def remove_booking_action():
     if booking_id == "q":
         return
     bookings.cancel_booking(booking_id, booking_refund_policy)
-    pause_confirm()
 
 ## Admin Movie Actions-----
 def admin_new_movie_action():
     movies.add_movie()
-    pause_confirm()
 
 def admin_remove_movie_action():
     movie = dynamic_select_movie("Select a movie to retire:")
     if not movie:
         return
     movies.remove_movie(movie)
-    pause_confirm()
 
 def admin_new_showing_action():
     admin_choice = MenuSelector.dynamic_selector(
@@ -408,16 +410,12 @@ def admin_new_showing_action():
         return
     showing_movie = cached_movies[int(admin_choice) - 1]
     movies.schedule_showtime(showing_movie)
-    pause_confirm()
 
 def admin_edit_showing_action():
     showing = dynamic_select_showtime("Select a showing to edit:")
     if not showing:
         return
     movies.update_showtime(showing)
-    storage.save_state(data_path)
-    print(f"Updated showing: \n{showing}")
-    pause_confirm()
 
 def admin_remove_showing_action():
     admin_choice = MenuSelector.dynamic_selector(
@@ -427,18 +425,15 @@ def admin_remove_showing_action():
         return
     retired_showing = cached_showings[int(admin_choice) - 1]
     movies.remove_showtime(retired_showing)
-    pause_confirm()
 
 ### Admin Reports Actions
 def admin_reports_export_action():
     reports.export_report(input("filename:"), list(movies.Showtime.current_items.values()),
                           list(bookings.Booking.current_items.values()))
-    pause_confirm()
 
 def admin_reports_occupancy_action():
     occupancy_data = reports.occupancy_report(list(movies.Showtime.current_items.values()))
     print_dict(occupancy_data)
-    pause_confirm()
 
 def admin_report_revenue_action():
     mode = input("Enter date range manually, or automatically set widest possible range? (m/a): ").lower().strip()
@@ -455,11 +450,10 @@ def admin_report_revenue_action():
         revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), None,
                                                list(movies.Showtime.current_items.values()))
     print_dict(revenue_data)
-    pause_confirm()
 
 def admin_report_top_action():
     print_list(reports.top_movies(list(movies.Showtime.current_items.values())))
-    pause_confirm()
+
 
 # General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
@@ -495,7 +489,6 @@ def print_list(my_list, double_spaced = False):
         print()
     else:
         [print(item) for item in my_list]
-    pause_confirm()
 
 def print_dict(my_dict: dict, double_spaced: bool = False, dynamic_key_char_limit = True, key_char_limit: int = 20):
     if dynamic_key_char_limit:
@@ -568,7 +561,6 @@ def movie_pretty_print(movie: movies.Movie):
           f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)}M\n"
           f"Rating: {movie.rating:.2f}/5.00\n"
           f"Description: {movie.description}")
-    pause_confirm()
 
 
 
