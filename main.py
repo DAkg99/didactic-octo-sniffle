@@ -480,8 +480,7 @@ def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
     )
     if user_choice == "back":
         return None
-    print(user_choice)
-    return movies.Showtime.current_items[user_choice]
+    return movies.Showtime.current_items[int(user_choice)]
 
 def clear_terminal():
     if os.name == "nt":
