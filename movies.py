@@ -109,7 +109,7 @@ class Showtime:
         self.max_attendees = self.seat_layout[0] * self.seat_layout[1]
         self.movie.showtime_add(self)
 
-    def pretty_listing(self, *, short = False):
+    def pretty_string(self, *, short = False):
         if not short:
             return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
                 f"{self.movie.short_title()} {self.datetime.strftime('%Y %b %d %H:%M')}"

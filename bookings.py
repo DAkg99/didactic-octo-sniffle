@@ -30,10 +30,6 @@ class Booking:
         Booking.current_items[self.uid] = self
         self.showtime.booking_new(self)
 
-    def __repr__(self):
-        return (f"{self.showtime.pretty_listing(short=True)}\nCustomer: {self.name} ({self.email}) \nSeats: "
-                f"{' '.join([f'{chr(65 + seat[0] // 26)}{chr(65 + seat[0] % 26)}{seat[1] + 1:02d}' for seat in self.seats])}")
-
     @classmethod
     def from_dict(cls, book_dict: dict):
         return cls(
@@ -63,6 +59,10 @@ class Booking:
         Booking.current_items.pop(self.uid)
         self.showtime.booking_remove(self)
         del self
+
+    def pretty_string(self):
+        return (f"{self.showtime.pretty_string(short=True)}\nCustomer: {self.name} ({self.email}) \nSeats: "
+         f"{' '.join([f'{chr(65 + seat[0] // 26)}{chr(65 + seat[0] % 26)}{seat[1] + 1:02d}' for seat in self.seats])}")
 
 
 def load_bookings(path):

@@ -471,7 +471,7 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
 def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
     admin_choice = MenuSelector.dynamic_selector(
         prompt,
-        cached_showings := [showtime.pretty_listing() for showtime in movies.Showtime.current_items.values()]
+        cached_showings := [showtime.pretty_string() for showtime in movies.Showtime.current_items.values()]
     )
     if admin_choice == "back":
         return None
@@ -486,12 +486,23 @@ def clear_terminal():
 def pause_confirm():
     input("[Enter to continue] ")
 
-def print_list(my_list, double_spaced = False):
-    if double_spaced:
-        [print(f"\n{item}") for item in my_list]
-        print()
+def print_list(my_list: list, double_spaced = False):
+    if not my_list:
+        return
+    # If they're all custom objects, use existing method to get pretty string.
+    # Otherwise, print them normally.
+    if all(isinstance(item, (bookings.Booking, movies.Movie, movies.Showtime)) for item in my_list):
+        if double_spaced:
+            [print(f"\n{item.pretty_string()}") for item in my_list]
+            print()
+        else:
+            [print(item.pretty_string()) for item in my_list]
     else:
-        [print(item) for item in my_list]
+        if double_spaced:
+            [print(f"\n{item}") for item in my_list]
+            print()
+        else:
+            [print(item) for item in my_list]
 
 def print_dict(my_dict: dict, double_spaced: bool = False, dynamic_key_char_limit = True, key_char_limit: int = 20):
     if dynamic_key_char_limit:
