@@ -62,6 +62,9 @@ import reports
 
 
 # Extra To-dos:
+# General: Put load_state() before any action that is about to save state, so they change the most recent date.
+# Main: Booking: Instead of running a timer, save reserved seats with the time they're issued at. When fetching
+#  reserved seats, ones older than X minutes can automatically be deleted.
 # Main: Booking menu: New: Add a ----screen---- line to seat map.
 # Main: Schedule Viewer: Send user to create new booking.
 # Main: Schedule Viewer: Non-exact search for movie title.
@@ -281,7 +284,7 @@ def book_menu():
                 return
             case "new_book":
                 new_booking_action()
-            case "view_book":  # ACT
+            case "view_book":
                 view_booking_action()
             case "remove_book":
                 remove_booking_action()
