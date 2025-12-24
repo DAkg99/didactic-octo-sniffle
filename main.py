@@ -50,6 +50,8 @@ import reports
 # Admin: Storage & Backups
 
 # Working on:
+# General clean up
+# Move reservation logic completely to booking. Reserved seats should be 'unconfirmed' bookings.
 
 # To-do:
 # Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
@@ -127,10 +129,13 @@ class MenuSelector:
 
     @classmethod
     def dynamic_selector(cls, prompt: str, raw_options: list, run: bool = True):
-        """Construct new instance using raw_options as options (keyed as string integers). Immediately runs selection"""
-        options = [{"back": "[Go back]"}]
+        """Construct instance with options. Non-dict options are keyed as string-integers."""
+        options = [{"back": "[Go back]"}]  # First option
         for index, option in enumerate(raw_options, 1):
-            options.append({str(index): option})
+            if type(option) == dict:
+                options.append(option)  # Use dict key as the option value if it's a dict, use enumerated key otherwise.
+            else:
+                options.append({str(index): option})
         if run:
             return cls(prompt, options).run()
         return cls(prompt, options)
@@ -460,22 +465,23 @@ def admin_report_top_action():
 
 # General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
-    admin_choice = MenuSelector.dynamic_selector(
+    user_choice = MenuSelector.dynamic_selector(
         prompt,
-        cached_movies := list(movies.Movie.current_items.values())
+        [{key: value.title} for key, value in movies.Movie.current_items.items()]
     )
-    if admin_choice == "back":
+    if user_choice == "back":
         return None
-    return cached_movies[int(admin_choice) - 1]
+    return movies.Movie.current_items[user_choice]
 
 def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
-    admin_choice = MenuSelector.dynamic_selector(
+    user_choice = MenuSelector.dynamic_selector(
         prompt,
-        cached_showings := [showtime.pretty_string() for showtime in movies.Showtime.current_items.values()]
+        [{key: value.pretty_string()} for key, value in movies.Showtime.current_items.items()]
     )
-    if admin_choice == "back":
+    if user_choice == "back":
         return None
-    return cached_showings[int(admin_choice) - 1]
+    print(user_choice)
+    return movies.Showtime.current_items[user_choice]
 
 def clear_terminal():
     if os.name == "nt":

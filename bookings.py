@@ -7,7 +7,8 @@ from typing import ClassVar, Self
 import datetime as dt
 import movies
 
-from storage import random_uid_generator
+from storage import random_uid_generator, booking_data_key
+
 
 @dataclass(frozen=True)
 class Booking:
@@ -61,7 +62,9 @@ class Booking:
         del self
 
     def pretty_string(self):
-        return (f"{self.showtime.pretty_string(short=True)}\nCustomer: {self.name} ({self.email}) \nSeats: "
+        return (f"{self.showtime.pretty_string(short=True)}\n"
+                f"Customer: {self.name} ({self.email})\n"
+                f"Seats: "
          f"{' '.join([f'{chr(65 + seat[0] // 26)}{chr(65 + seat[0] % 26)}{seat[1] + 1:02d}' for seat in self.seats])}")
 
 
@@ -116,20 +119,17 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
     """Calculate the cost of a given ticket."""
-    seat_count = len(booking_data["seats"].split(", "))
+    booking_seat_count = len(booking_data["seats"].split(", "))
     discount_data = pricing["discounts"]
-    base_price = pricing["pricing_tiers"][movies.Showtime.current_items[booking_data["showtime_id"]].pricing_tier]
-    price = seat_count * base_price * (100 + pricing["tax"]) / 100
-    # Apply group discount
-    if seat_count >= discount_data["group"][0]:
+    per_seat_cost = pricing["pricing_tiers"][movies.Showtime.current_items[booking_data["showtime_id"]].pricing_tier]
+    price = booking_seat_count * per_seat_cost * (100 + pricing["tax"]) / 100  # Get base price with tax
+    if booking_seat_count >= discount_data["group"][0]:  # Apply group discount
         price *= (100 - discount_data["group"][1]) / 100
-    # Apply age discounts
-    if booking_data["age"] <= discount_data["min_age"][0]:
+    if booking_data["age"] <= discount_data["min_age"][0]:  # Apply age discounts
         price *= (100 - discount_data["min_age"][1]) / 100
     elif booking_data["age"] >= discount_data["min_age"][0]:
         price *= (100 - discount_data["max_age"][1]) / 100
-    # Apply student discount
-    if discount_data["student"][0] in booking_data["email"]:
+    if discount_data["student"][0] in booking_data["email"]:  # Apply student discount
         price *= (100 - discount_data["student"][1]) / 100
     return price
 
@@ -144,7 +144,7 @@ def payment(cost: float, showtime, seats_formatted: list[str], reserve_id) -> bo
     else:
         print("Payment successful.")
         success = True
-    showtime.reserve_seats_remove(reserve_id)
+    showtime.reserve_seats_remove(reserve_id)  # Release seats either way.
     return success
 
 def list_customer_bookings(email: str) -> list:
