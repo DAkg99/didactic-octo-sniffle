@@ -4,48 +4,31 @@
 
 import json
 import datetime as dt
-import random
 from dataclasses import dataclass, field
 from typing import ClassVar, Self
 
+import storage
+from storage import random_uid_generator
 
 @dataclass(frozen=True)
 class Movie:
     """Mostly immutable class for movies. Class tracks all current instances in a dict."""
-    current_items: ClassVar[dict[int,Self]] = {}  # Dictionary keyed by id
+    current_items: ClassVar[dict[str,Self]] = {}                  # CLASS VAR: Automatically self-populates.
     title: str
-    _genre: list[str]
+    genre: list[str]
     duration: dt.timedelta
     description: str
-    rating: float  # !Mutable! Do not use for hashing.
-    uid: int
-    _showtimes: list = field(default_factory=list)  # Automatically populated when showtimes are loaded in.
-
-    def __unique_attrs(self):
-        return self.title, "".join(self._genre), self.duration, self.description
-
-    def __hash__(self):
-        return hash(self.__unique_attrs())
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.__unique_attrs() == other.__unique_attrs()
-        return False
-
-    def __repr__(self):
-        return self.title
+    rating: float = field(compare=False)                          # Mutable (set by update_rating method)
+    uid: str = field(compare=False)                               # Mutable (set post init)
+    showtimes: list = field(default_factory=list, compare=False)  # Mutable (set by showtime_add/rem methods)
 
     def __post_init__(self):
+        # Generate UID if none provided.
         if not self.uid:
-            object.__setattr__(self, "uid", f"{hash(self)}")
+            new_uid = random_uid_generator(self.current_items.keys())
+            object.__setattr__(self, "uid", new_uid)
+        # Add self to class dictionary.
         Movie.current_items[self.uid] = self
-
-    @property
-    def genre(self):
-        return self._genre
-    @property
-    def showtimes(self):
-        return self._showtimes
 
     @classmethod
     def from_dict(cls, movie_dict: dict[str, str | int | float | list]):
@@ -91,10 +74,10 @@ class Movie:
         object.__setattr__(self, "rating",new_rating)
 
     def showtime_add(self, showtime):
-        self._showtimes.append(showtime)
+        self.showtimes.append(showtime)
 
     def showtime_rem(self, showtime):
-        self._showtimes.remove(showtime)
+        self.showtimes.remove(showtime)
 
 
 @dataclass
@@ -108,24 +91,10 @@ class Showtime:
     pricing_tier: int
     uid: int
     bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
-    __seat_layout: tuple = (15, 10)  # Columns, Rows
-    __full: bool = False             # Automatically set.
-    __max_attendees: int = 0         # Automatically set upon init.
-    __temporarily_reserved_seats: dict = field(default_factory=dict)
-
-    def __unique_attrs(self):
-        return self.movie.uid, self.datetime, self.screen
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.__unique_attrs() == other.__unique_attrs()
-        return False
-
-    def __repr__(self):
-        return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.short_title()} {self.datetime.strftime('%Y %b %d %H:%M')}"
-                f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d}/{self.__max_attendees} "
-                f"Lang: {self.language.title()})")
+    seat_layout: tuple = (15, 10)                 # Columns, Rows
+    full: bool = False                            # Automatically set.
+    max_attendees: int = 0                        # Automatically set upon init.
+    temporarily_reserved_seats: dict = field(default_factory=dict)
 
     def __post_init__(self):
         # Sets up ID, max attendee count, and adds itself to the list of showtimes.
@@ -137,29 +106,28 @@ class Showtime:
                 if not self.uid in list(Showtime.current_items.keys()):
                     break
         Showtime.current_items[self.uid] = self
-        self.__max_attendees = self.__seat_layout[0] * self.__seat_layout[1]
+        self.max_attendees = self.seat_layout[0] * self.seat_layout[1]
         self.movie.showtime_add(self)
 
-    def short_represent(self) -> str:
-        return (f"Showing: {self.movie.title} ({self.datetime.strftime('%Y %b %d %H:%M')} "
+    def pretty_listing(self, *, short = False):
+        if not short:
+            return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
+                f"{self.movie.short_title()} {self.datetime.strftime('%Y %b %d %H:%M')}"
+                f"(Screen: {self.screen}, Seats left: {self.max_attendees - self.attendees:03d}/{self.max_attendees} "
+                f"Lang: {self.language.title()})")
+        else:
+            return (f"Showing: {self.movie.title} ({self.datetime.strftime('%Y %b %d %H:%M')} "
                 f"Screen {self.screen} (language: {self.language.title()}))")
-
 
     @property
     def seat_cols(self) -> int:
-        return self.__seat_layout[1]
+        return self.seat_layout[1]
     @property
     def seat_rows(self) -> int:
-        return self.__seat_layout[0]
-    @property
-    def full(self) -> bool:
-        return self.__full
-    @property
-    def max_attendees(self) -> int:
-        return self.__max_attendees
+        return self.seat_layout[0]
     @property
     def occupied_seats(self) -> list:
-        occupied = [item for value in self.__temporarily_reserved_seats.values() for item in value]
+        occupied = [item for value in self.temporarily_reserved_seats.values() for item in value]
         for booking in self.bookings:
             occupied += booking.seats
         return occupied
@@ -213,28 +181,22 @@ class Showtime:
 
     def reserve_seats_add(self, seats: list) -> str:
         # Generate unique reservation ID and save reserved seats with ID as the key. Key is returned.
-        reserve_uid = self.__new_reserve_id()
-        self.__temporarily_reserved_seats[reserve_uid] = seats
+        reserve_uid = storage.random_uid_generator(self.temporarily_reserved_seats.keys())
+        self.temporarily_reserved_seats[reserve_uid] = seats
         return reserve_uid
 
     def reserve_seats_remove(self, reserve_uid: str):
-        if reserve_uid in self.__temporarily_reserved_seats.keys():
-            self.__temporarily_reserved_seats.pop(reserve_uid)
-
-    def __new_reserve_id(self) -> str:
-        uid_trial = f"{random.randint(1, 65535):04x}"
-        while uid_trial in self.__temporarily_reserved_seats.keys():
-            uid_trial = f"{random.randint(1, 65535):04x}"
-        return uid_trial
+        if reserve_uid in self.temporarily_reserved_seats.keys():
+            self.temporarily_reserved_seats.pop(reserve_uid)
 
     def __update_attendee_count(self):
         self.attendees = len([seat for seat in [booking.seats for booking in self.bookings]])
 
     def __update_fullness_status(self):
-        if self.attendees >= self.__max_attendees:
-            self.__full = True
+        if self.attendees >= self.max_attendees:
+            self.full = True
         else:
-            self.__full = False
+            self.full = False
 
     def __verify_arrangement(self):
         """Check if seat arrangement is within valid range. Raise error if not."""

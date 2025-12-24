@@ -5,12 +5,6 @@ import os
 
 def occupancy_report(showtimes_list: list) -> dict:
     """Returns analytics in a dictionary."""
-    data = {
-        "total occupancy percent": 0.0,
-        "average ticket count": 0.0,
-        "busiest day": ""
-    }
-    total_attendees = 0
     total_max_attendees = 0
     ticket_count = 0
     days = {

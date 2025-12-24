@@ -381,7 +381,7 @@ def new_booking_action():
         return
     booking_data = bookings.new_booking(showing, seats["tuple"], pricing_data)  # Generate booking data
     if bookings.payment(booking_data["cost"], showing, seats["formatted"], reserve_id):
-        bookings.generate_ticket(booking_data, data_path)  # Generate ticket if payment success
+        bookings.generate_ticket(booking_data)  # Generate ticket if payment success
 
 def view_booking_action():
     search_email = input("Enter your email ('q' to go back): ").lower().strip()
@@ -471,7 +471,7 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
 def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
     admin_choice = MenuSelector.dynamic_selector(
         prompt,
-        cached_showings := list(movies.Showtime.current_items.values())
+        cached_showings := [showtime.pretty_listing for showtime in movies.Showtime.current_items.values()]
     )
     if admin_choice == "back":
         return None

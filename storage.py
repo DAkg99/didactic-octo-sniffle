@@ -5,6 +5,8 @@
 import datetime as dt
 import json
 import os
+import random
+from collections.abc import Container
 
 # Required internal imports for saving/loading:
 import bookings
@@ -13,6 +15,13 @@ import movies
 movie_data_key = "Movie Data"
 showtime_data_key = "Showtime Data"
 booking_data_key = "Booking Data"
+
+def random_uid_generator(existing_uids: Container, length: int = 8) -> str:
+    """Generates a hex string 'length' characters long. String is unique within the list provided."""
+    uid_trial = f"{random.randint(1, (16 ** length) - 1):0{length}x}"
+    while uid_trial in existing_uids:
+        uid_trial = f"{random.randint(1, (16 ** length) - 1):0{length}x}"
+    return uid_trial
 
 def user_input_verified_date(mode: str = "datetime", prompt_override: str = "") -> dt.datetime | None:
     """Repeatedly prompts user for valid string until one is given (return datetime) or user cancels (return None)

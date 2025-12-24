@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self
 import datetime as dt
 import movies
-import random
+
+from storage import random_uid_generator
 
 @dataclass(frozen=True)
 class Booking:
@@ -17,27 +18,20 @@ class Booking:
     email: str
     issued: dt.datetime
     cost: float
-    seats: list[tuple] = field(default_factory=list)
-    uid: str = ''  # Set during __post_init__
+    seats: list[tuple]
+    uid: str = field(default='', compare=False)  # Mutable (set post init)
 
-    def __unique_attributes(self):
-        return self.showtime.uid, self.name, self.age, self.email, "".join([str(seat) for seat in self.seats]), self.cost
-    def __hash(self):
-        print(hash(self.__unique_attributes()))
-        return hash(self.__unique_attributes())
     def __post_init__(self):
-        # Initialise UID if absent. Append to parent showtime and class list.
+        # Generate UID if none provided.
         if not self.uid:
-            uid_trial = f"{random.randint(1, 4294967295):08x}"
-            while uid_trial in list(Booking.current_items.keys()):
-                uid_trial = f"{random.randint(1, 4294967295):08x}"
-            object.__setattr__(self, "uid", uid_trial)
+            new_uid = random_uid_generator(self.current_items.keys())
+            object.__setattr__(self, "uid", new_uid)
+        # Add self to class dictionary & parent Showtime.
         Booking.current_items[self.uid] = self
         self.showtime.booking_new(self)
-    def __eq__(self, other):
-        return self.__unique_attributes() == other.__unique_attributes()
+
     def __repr__(self):
-        return (f"{self.showtime.short_represent()}\nCustomer: {self.name} ({self.email}) \nSeats: "
+        return (f"{self.showtime.pretty_listing(short=True)}\nCustomer: {self.name} ({self.email}) \nSeats: "
                 f"{' '.join([f'{chr(65 + seat[0] // 26)}{chr(65 + seat[0] % 26)}{seat[1] + 1:02d}' for seat in self.seats])}")
 
     @classmethod
@@ -50,7 +44,7 @@ class Booking:
             dt.datetime.strptime(book_dict["issued"], "%Y-%m-%d %H:%M"),
             book_dict["cost"],
             [tuple([int(value) for value in seat.split("-")]) for seat in book_dict["seats"].split(", ")],
-            book_dict.get("uid")
+            book_dict.get("uid", '')
         )
 
     def to_dict(self):
@@ -64,14 +58,6 @@ class Booking:
             "seats": ", ".join([f"{seat[0]}-{seat[1]}" for seat in self.seats]),
             "uid": self.uid
         }
-
-    def save_to_database(self, path) -> str:
-        with open(path + "bookings.json", "r") as book_f:
-            all_bookings = json.load(book_f)
-        with open(path + "bookings.json", "w") as book_f:
-            all_bookings.append(self.to_dict())
-            json.dump(all_bookings, book_f, indent=4)
-        return self.uid
 
     def delete_self(self):
         Booking.current_items.pop(self.uid)
@@ -91,7 +77,7 @@ def save_bookings(path):
         json.dump([booking.to_dict() for booking in Booking.current_items.values()], bookings_f, indent=4)
 
 def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
-    # Set up booking data
+    """Generates booking data as a dictionary."""
     booking_dict = dict()
     booking_dict["showtime_id"] = showtime.uid
     booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
@@ -101,13 +87,15 @@ def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     return booking_dict
 
 def cancel_booking(booking_id: str, policy: dict) -> bool:
+    """Cancels booking of given ID"""
+    # Verify that booking with such ID exists.
     booking = Booking.current_items.get(booking_id, None)
     if not booking:
         print("Invalid booking ID.")
         return False
-    hours_since_purchase = _timedelta_to_hours(dt.datetime.now() - booking.issued)
-    hours_til_showtime = _timedelta_to_hours(booking.showtime.datetime - dt.datetime.now())
-    # Check cases.
+    # See if customer can get a refund.
+    hours_since_purchase = (dt.datetime.now() - booking.issued) / dt.timedelta(hours=1)
+    hours_til_showtime = (booking.showtime.datetime - dt.datetime.now()) /  dt.timedelta(hours=1)
     if input(f"{booking}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
         print("Please enter a different booking ID.")
         return False
@@ -121,11 +109,13 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
         print(f"No refund available: You can't get a refund for a movie which is "
               f"about to begin in {policy['purchase_time_limit_hours']} hours")
         return False
+    # Grant refund.
     booking.delete_self()
     print(f"{booking.cost}₺ has been refunded to your account.")
     return True
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
+    """Calculate the cost of a given ticket."""
     seat_count = len(booking_data["seats"].split(", "))
     discount_data = pricing["discounts"]
     base_price = pricing["pricing_tiers"][movies.Showtime.current_items[booking_data["showtime_id"]].pricing_tier]
@@ -164,18 +154,12 @@ def list_customer_bookings(email: str) -> list:
             booking_list.append(booking)
     return booking_list
 
-def generate_ticket(booking_data: dict, path: str):
-    booking_id = Booking.from_dict(booking_data).save_to_database(path)
+def generate_ticket(booking_data: dict):
+    booking_id = Booking.from_dict(booking_data)
     print(f"Booking made successfully.\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
           f"Booking ID: {booking_id}\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}")
-
-def _timedelta_to_hours(delta: dt.timedelta) -> float:
-    return (((delta.days * 24) +
-            (delta.seconds / (60 * 60))) +
-            (delta.microseconds / (1000000 * 60 * 60)))
-
 
 def _ask_user_info() -> tuple[str, int, str]:
     # Get name
