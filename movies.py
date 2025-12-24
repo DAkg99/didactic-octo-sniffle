@@ -108,9 +108,9 @@ class Showtime:
     pricing_tier: int
     uid: int
     bookings: list = field(default_factory=list)  # Automatically populated when bookings are loaded in.
-    __seat_layout: tuple = (15, 10)  # Rows, columns
-    __full: bool = False
-    __max_attendees: int = 0
+    __seat_layout: tuple = (15, 10)  # Columns, Rows
+    __full: bool = False             # Automatically set.
+    __max_attendees: int = 0         # Automatically set upon init.
     __temporarily_reserved_seats: dict = field(default_factory=dict)
 
     def __unique_attrs(self):
@@ -123,7 +123,7 @@ class Showtime:
 
     def __repr__(self):
         return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.short_title()} {self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
+                f"{self.movie.short_title()} {self.datetime.strftime('%Y %b %d %H:%M')}"
                 f"(Screen: {self.screen}, Seats left: {self.__max_attendees - self.attendees:03d}/{self.__max_attendees} "
                 f"Lang: {self.language.title()})")
 
@@ -140,30 +140,11 @@ class Showtime:
         self.__max_attendees = self.__seat_layout[0] * self.__seat_layout[1]
         self.movie.showtime_add(self)
 
-    def __update_attendee_count(self):
-        self.attendees = len([seat for seat in [booking.seats for booking in self.bookings]])
+    def short_represent(self) -> str:
+        return (f"Showing: {self.movie.title} ({self.datetime.strftime('%Y %b %d %H:%M')} "
+                f"Screen {self.screen} (language: {self.language.title()}))")
 
-    def __update_fullness_status(self):
-        if self.attendees >= self.__max_attendees:
-            self.__full = True
-        else:
-            self.__full = False
 
-    def __verify_arrangement(self):
-        """Check if seat arrangement is within valid range. Raise error if not."""
-        if 1 > self.seat_cols or 1 > self.seat_rows:
-            raise ValueError("Seat arrangement must have positive values.")
-        if self.seat_rows > 676:
-            raise ValueError("Too many seats! (Too many rows to enumerate with 2 alphabetic characters)")
-        elif self.seat_cols > 98:
-            raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
-
-    @property
-    def date(self) -> dt.date:
-        return dt.date(self.datetime.year, self.datetime.month, self.datetime.day)
-    @property
-    def time(self) -> dt.time:
-        return dt.time(self.datetime.hour, self.datetime.minute)
     @property
     def seat_cols(self) -> int:
         return self.__seat_layout[1]
@@ -185,8 +166,6 @@ class Showtime:
     @property
     def editable_attribute_dict_keys(self) -> list:
         return ["movie_id", "datetime", "screen", "language", "pricing_tier"]
-
-
 
     @classmethod
     def from_dict(cls, show_dict: dict):
@@ -222,11 +201,6 @@ class Showtime:
         self.pricing_tier = data_dict["pricing_tier"]
         self.uid = data_dict.get("uid", 0)
 
-
-    def short_represent(self) -> str:
-        return (f"Showing: {self.movie.title} ({self.date.strftime('%Y %b %d')} {self.time.strftime('%H:%M')} "
-                f"Screen {self.screen} (language: {self.language.title()}))")
-
     def booking_new(self, booking):
         self.bookings.append(booking)
         self.__update_attendee_count()
@@ -252,6 +226,25 @@ class Showtime:
         while uid_trial in self.__temporarily_reserved_seats.keys():
             uid_trial = f"{random.randint(1, 65535):04x}"
         return uid_trial
+
+    def __update_attendee_count(self):
+        self.attendees = len([seat for seat in [booking.seats for booking in self.bookings]])
+
+    def __update_fullness_status(self):
+        if self.attendees >= self.__max_attendees:
+            self.__full = True
+        else:
+            self.__full = False
+
+    def __verify_arrangement(self):
+        """Check if seat arrangement is within valid range. Raise error if not."""
+        if 1 > self.seat_cols or 1 > self.seat_rows:
+            raise ValueError("Seat arrangement must have positive values.")
+        if self.seat_rows > 676:
+            raise ValueError("Too many seats! (Too many rows to enumerate with 2 alphabetic characters)")
+        elif self.seat_cols > 98:
+            raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
+
 
 
 def load_movies(path: str) -> list[Movie]:
@@ -310,7 +303,7 @@ def save_showtimes(path: str) -> None:
     with open(path+"showtimes.json", "w") as showtimes_f:
         json.dump([showtime.to_dict() for showtime in Showtime.current_items.values()], showtimes_f, indent=4)
 
-def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> list:
+def list_showtimes(search_value: str | dt.datetime | None = None) -> list:
     """Lists showtimes, with optional search parameter"""
     showtimes = list(Showtime.current_items.values())
     if not search_value:
@@ -318,7 +311,7 @@ def list_showtimes(path: str, search_value: str | dt.datetime | None = None) -> 
     requested_showtimes = []
     if isinstance(search_value,dt.datetime):
         for item in showtimes:
-            if item.date == search_value:
+            if item.datetime.date == search_value:
                 requested_showtimes.append(item)
     else:
         for item in showtimes:

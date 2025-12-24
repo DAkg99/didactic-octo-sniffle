@@ -145,7 +145,7 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
 
 def payment(cost: float, showtime, seats_formatted: list[str], reserve_id) -> bool:
     """Make payment and release reserved seats."""
-    print(f"Movie {showtime.movie.title} at {showtime.date.strftime('%Y %b %d')} {showtime.time.strftime('%H:%M')}:\n"
+    print(f"Movie {showtime.movie.title} at {showtime.datetime.strftime('%Y %b %d %H:%M')}:\n"
           f"Seats: {', '.join(seats_formatted)}")
     print(f"Your total is {cost}₺")
     if input("Enter payment details ('q' to cancel): ").lower().strip() == "q":

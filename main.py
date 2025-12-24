@@ -263,12 +263,12 @@ def schedule_menu():
                 return
             case "title":
                 if search_for := input(f"Enter movie title: "):
-                    print_list(movies.list_showtimes(data_path, search_for))
+                    print_list(movies.list_showtimes(search_for))
             case "date":
-                if search_for := storage.user_input_verified_date():
-                    print_list(movies.list_showtimes(data_path, search_for))
+                if search_for := storage.user_input_verified_date("date"):
+                    print_list(movies.list_showtimes(search_for))
             case "all":
-                print_list(movies.list_showtimes(data_path))
+                print_list(movies.list_showtimes())
             case _:
                 raise NotImplementedError
         pause_confirm()
