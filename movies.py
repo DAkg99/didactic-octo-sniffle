@@ -43,7 +43,7 @@ class Movie:
             movie_dict["rating"],
             movie_dict["uid"])
 
-    def short_title(self, limit: int = 25):
+    def short_title(self, limit: int = 15):
         if limit <= 2:
             raise ValueError("Limit too low")
         if len(self.title) <= limit:

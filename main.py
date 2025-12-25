@@ -50,8 +50,10 @@ import reports
 # Admin: Storage & Backups
 
 # Working on:
+# Dynamic selectors return their selection to class current_items, which can change during choice. Change to caching.
 # General clean up
 # Move reservation logic completely to booking. Reserved seats should be 'unconfirmed' bookings.
+# Fix booking printing
 
 # To-do:
 # Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
@@ -249,6 +251,7 @@ admin_backups_selector = MenuSelector(
 
 ### Menus
 def main_menu():
+    clear_terminal()
     while True:
         match main_selector.run():
             case "admin":
@@ -265,6 +268,7 @@ def main_menu():
 
 def schedule_menu():
     """Make user search through the schedule"""
+    clear_terminal()
     while True:
         match schedule_selector.run():
             case "back":
@@ -283,6 +287,7 @@ def schedule_menu():
 
 def book_menu():
     """Get user to view and manage bookings"""
+    clear_terminal()
     while True:
         match book_selector.run():
             case "back":
@@ -465,22 +470,24 @@ def admin_report_top_action():
 
 # General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
+    temp_movie_dict = movies.Movie.current_items.copy()  # Cache it in case movies are edited during choice
     user_choice = MenuSelector.dynamic_selector(
         prompt,
-        [{key: value.title} for key, value in movies.Movie.current_items.items()]
+        [{key: value.title} for key, value in temp_movie_dict.items()]
     )
     if user_choice == "back":
         return None
-    return movies.Movie.current_items[user_choice]
+    return temp_movie_dict[user_choice]
 
 def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
+    temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache it in case edited during choice
     user_choice = MenuSelector.dynamic_selector(
         prompt,
-        [{key: value.pretty_string()} for key, value in movies.Showtime.current_items.items()]
+        [{key: value.pretty_string()} for key, value in temp_showtime_dict.items()]
     )
     if user_choice == "back":
         return None
-    return movies.Showtime.current_items[int(user_choice)]
+    return temp_showtime_dict[int(user_choice)]
 
 def clear_terminal():
     if os.name == "nt":
