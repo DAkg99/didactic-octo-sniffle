@@ -109,14 +109,14 @@ class Showtime:
         self.max_attendees = self.seat_layout[0] * self.seat_layout[1]
         self.movie.showtime_add(self)
 
-    def pretty_string(self, *, short = False):
+    def pretty_string(self, *, short = False, title_limit = 15):
         if not short:
             return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.short_title()} {self.datetime.strftime('%Y %b %d %H:%M')}"
+                f"{self.movie.short_title(title_limit)} {self.datetime.strftime('%Y %b %d %H:%M')}"
                 f"(Screen: {self.screen}, Seats left: {self.max_attendees - self.attendees:03d}/{self.max_attendees} "
                 f"Lang: {self.language.title()})")
         else:
-            return (f"Showing: {self.movie.title} ({self.datetime.strftime('%Y %b %d %H:%M')} "
+            return (f"Showing: {self.movie.short_title(title_limit)} ({self.datetime.strftime('%Y %b %d %H:%M')} "
                 f"Screen {self.screen} (language: {self.language.title()}))")
 
     @property
@@ -142,7 +142,7 @@ class Showtime:
     def from_dict(cls, show_dict: dict):
         return cls(
             Movie.current_items[show_dict["movie_id"]],
-            dt.datetime.strptime(show_dict["datetime"], "%Y-%m-%d %H:%M"),
+            dt.datetime.fromisoformat(show_dict["datetime"]),
             show_dict["screen"],
             0,
             show_dict["language"],
@@ -154,7 +154,7 @@ class Showtime:
     def to_dict(self):
         return {
             "movie_id": self.movie.uid,
-            "datetime": self.datetime.strftime("%Y-%m-%d %H:%M"),
+            "datetime": str(self.datetime),
             "screen": self.screen,
             "attendees": self.attendees,
             "language": self.language,
@@ -165,12 +165,12 @@ class Showtime:
     def update_from_dict(self, data_dict: dict):
         """Updates all values except bookings"""
         self.movie = Movie.current_items[data_dict["movie_id"]]
-        self.datetime = dt.datetime.strptime(data_dict["datetime"], "%Y-%m-%d %H:%M")
+        self.datetime = dt.datetime.fromisoformat(data_dict["datetime"])
         self.screen = data_dict["screen"]
         self.attendees = data_dict["attendees"]
         self.language = data_dict["language"]
         self.pricing_tier = data_dict["pricing_tier"]
-        self.uid = data_dict.get("uid", 0)
+        self.uid = data_dict["uid"]
 
     def booking_new(self, booking):
         self.bookings.append(booking)
