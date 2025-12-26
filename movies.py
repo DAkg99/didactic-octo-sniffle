@@ -126,10 +126,13 @@ class Showtime:
     def seat_rows(self) -> int:
         return self.seat_layout[0]
     @property
-    def occupied_seats(self) -> list:
-        occupied = [item for value in self.temporarily_reserved_seats.values() for item in value]
+    def occupied_seats(self) -> dict[str, list]:
+        occupied = {
+            "reserved": [item for value in self.temporarily_reserved_seats.values() for item in value],
+            "confirmed": []
+        }
         for booking in self.bookings:
-            occupied += booking.seats
+            occupied["confirmed"] += booking.seats
         return occupied
     @property
     def editable_attribute_dict_keys(self) -> list:

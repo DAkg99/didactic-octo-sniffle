@@ -50,12 +50,12 @@ import reports
 # Admin: Storage & Backups
 
 # Working on:
-# Dynamic selectors return their selection to class current_items, which can change during choice. Change to caching.
 # General clean up
 # Move reservation logic completely to booking. Reserved seats should be 'unconfirmed' bookings.
 # Fix booking printing
 
 # To-do:
+# Seating: Map: Add legend
 # Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
 # Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
 # Main: Booking: New: Differentiate "reserved" and "sold" in seat map.

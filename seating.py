@@ -30,8 +30,10 @@ def select_seats(showing) -> tuple[dict[str, list], str] | tuple[None, None]:
 def get_seat_map(showing):
     """Generates a seat map for a given list of bookings for a showing"""
     new_map = [[0 for _ in range(showing.seat_rows)] for _ in range(showing.seat_cols)]
-    for seat in showing.occupied_seats:
-        new_map[seat[1]][seat[0]] = 1  # Mark seat as filled on map
+    for reserved_seat in showing.occupied_seats["reserved"]:
+        new_map[reserved_seat[1]][reserved_seat[0]] = 2  # Mark reserved seats
+    for purchased_seat in showing.occupied_seats["confirmed"]:
+        new_map[purchased_seat[1]][purchased_seat[0]] = 1  # Mark purchased seats
     return new_map
 
 def is_seat_available(seats: list, showing) -> bool:
@@ -44,7 +46,7 @@ def is_seat_available(seats: list, showing) -> bool:
         if not ((0 <= seat_raw[1] < showing.seat_cols) and (0 <= seat_raw[0] < showing.seat_rows)):
             print("Error: Seats do not exist. Please select a valid seat.")
             return False
-        if seat_raw in showing.occupied_seats:
+        if seat_raw in [seat for seats_list in showing.occupied_seats.values() for seat in seats_list]:
             print("Error: One or more of the seats you've selected are no longer available. Please pick again.")
             return False
     return True
@@ -70,6 +72,8 @@ def render_map(seating_map):
             for col in range(columns):
                 if seating_map[col][row] == 1:
                     render_str = "XX "
+                elif seating_map[col][row] == 2:
+                    render_str = "RR "
                 else:
                     render_str = "-- "
                 print(render_str, end="")
