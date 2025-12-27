@@ -52,27 +52,24 @@ def is_seat_available(seats: list, showing, user_reservation = None) -> bool:
 def render_map(seating_map):
     """Prints seat map with labels. Splits into parts if window is narrow. Doesn't print if too narrow."""
     # terminal_width = next(iter(os.get_terminal_size()))
-    terminal_width = 120  # DEBUG
+    terminal_width = 12  # DEBUG
     char_per_col = 3
+    colum_count, row_count = len(seating_map), len(seating_map[1])
+    seat_characters = "XR-" # Characters for Sold, Reserved, Empty seats represtively
     if terminal_width < 2 * char_per_col:
         print("Your terminal window is too narrow! \nWiden it and try again to see available seating.")
         return
-    colum_count, row_count = len(seating_map), len(seating_map[1])
-    render_width = (colum_count + 1) * char_per_col  # + 1 For label column.
-    fits_screen = bool(render_width <= terminal_width)
-
-    if fits_screen:
-        _do_print(seating_map, row_count, colum_count, chr_per_col= char_per_col)
-    else:
-        col_step_size = (terminal_width // char_per_col) - 1  # - 1 to make space for label column in each iteration.
-        col_max = col_step_size
-        col_min = 0
-        while col_max < colum_count + col_step_size:  # Only stop if exceeded max value by a full step.
-            if col_max > colum_count:
-                col_max = colum_count  # If exceeds max value (but not by a full step), bring it down to max value
-            _do_print(seating_map, row_count, col_max, col_min, char_per_col)
-            col_min = col_max
-            col_max += col_step_size
+    # Iteratively print column ranges (as many columns as possible per iteration)
+    col_step_size = (terminal_width // char_per_col) - 1  # - 1 to make space for label column in each iteration.
+    col_max = col_step_size
+    col_min = 0
+    while col_max < colum_count + col_step_size:  # Only stop if exceeded max value by a full step.
+        if col_max > colum_count:
+            col_max = colum_count  # If exceeds max value (but not by a full step), bring it down to max value
+        _do_print(seating_map, row_count, col_max, col_min, char_per_col, seat_chars= seat_characters)
+        col_min = col_max
+        col_max += col_step_size
+    print(f"Occupied: {seat_characters[0]}, Reserved: {seat_characters[1]}, Available: {seat_characters[2]}\n")
 
 def reserve_seats(seats: list[tuple], showing, booking_cls, reserve_id = '') -> tuple[str, 'Booking']:
     """Make a dummy booking for reserved seats. Supply reserve_id if you want to 'refresh' a reservation."""
@@ -99,16 +96,16 @@ def raw2format(seat_raw: tuple) -> str:
     """Translate seat coordinates (C, R) into formatted string (AA00)"""
     return f"{chr(65 + seat_raw[0] // 26)}{chr(65 + seat_raw[0] % 26)}{seat_raw[1] + 1:02d}"
 
-def _do_print(seating_map: dict, rows: int, col_max: int, col_min: int = 0, chr_per_col = 3, chr_per_seat = 2):
-    """Helper function which prints the seat map."""
-    if chr_per_col < chr_per_seat:
+def _do_print(seating_map, rows, col_max, col_min = 0, chars_col = 3, chars_seat = 2, seat_chars = "XR-"):
+    """Helper function which prints the seat map. Prints from col_min to col_max."""
+    if chars_col < chars_seat:
         raise ValueError("Seats (being represented within columns) cannot have more chars than the column.")
     # Create the strings which will represent seats.
-    occupied_str = ("X" * chr_per_seat) + ((chr_per_col - chr_per_seat) * " ")
-    reserved_str = ("R" * chr_per_seat) + ((chr_per_col - chr_per_seat) * " ")
-    available_str = ("-" * chr_per_seat) + ((chr_per_col - chr_per_seat) * " ")
+    occupied_str = (seat_chars[0] * chars_seat) + ((chars_col - chars_seat) * " ")
+    reserved_str = (seat_chars[1] * chars_seat) + ((chars_col - chars_seat) * " ")
+    available_str = (seat_chars[2] * chars_seat) + ((chars_col - chars_seat) * " ")
     # Esoteric functions which create the label strings.
-    col_labels = lambda _col_max, _col_min: f"{' ' * chr_per_col}{''.join([f"{i:02d} " for i in range(_col_min + 1, _col_max + 1)])}"
+    col_labels = lambda _col_max, _col_min: f"{' ' * chars_col}{''.join([f"{i:02d} " for i in range(_col_min + 1, _col_max + 1)])}"
     row_label = lambda _row: f"{chr(65 + (_row // 26))}{chr(65 + (_row % 26))} ".upper()
     # Render the map.
     print(col_labels(col_max, col_min))  # Column labels (01, 02, ...) (printed at once in one row)

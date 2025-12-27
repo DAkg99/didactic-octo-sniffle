@@ -1,5 +1,4 @@
 import os
-import datetime as dt
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -52,11 +51,10 @@ from seating import is_seat_available
 
 # Working on:
 # General clean up
-# Seating: Map: Add legend
 # Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
+# Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
 
 # To-do:
-# Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
 # Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
@@ -382,24 +380,24 @@ def movie_details_action():
 ### Booking Actions-----
 def new_booking_action(reservation: bookings.Booking = None):
     if reservation:
-        showing, seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
+        showing, tuple_seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
     else:
         showing = dynamic_select_showtime("Select a scheduled showing:")
         if not showing:
             return  # Showing selection cancelled
-        seats = seating.select_seats(showing)
-        if not seats:
+        tuple_seats = seating.select_seats(showing)
+        if not tuple_seats:
             return  # Seating selection cancelled
         # Reserve seats.
-        reserve_id, reservation = seating.reserve_seats(seats, showing, bookings.Booking)
+        reserve_id, reservation = seating.reserve_seats(tuple_seats, showing, bookings.Booking)
         print(f"Seats reserved for {bookings.Booking.max_reserve_mins} minutes.\n"
               f"Use code below to resume booking if you leave:\n"
               f"CODE: {reserve_id}")
         pause_confirm()
-    formatted_seats = [seating.raw2format(seat) for seat in seats]
-    booking_data = bookings.new_booking(showing, seats, pricing_data)  # Generate booking data
-    if bookings.payment(booking_data["cost"], showing, formatted_seats, reserve_id):
-        if is_seat_available(formatted_seats, showing, reservation):  # Make sure user's seats weren't snagged.
+    seat_string_list = [seating.raw2format(seat) for seat in tuple_seats]  # Get formatted seats (for use later)
+    booking_data = bookings.new_booking(showing, tuple_seats, pricing_data)  # Generate booking data
+    if bookings.payment(booking_data["cost"], showing, seat_string_list, reserve_id):
+        if is_seat_available(seat_string_list, showing, reservation):  # Make sure user's seats weren't snagged.
             reservation.remove_self()  # Delete reservation if payment succeeds
             del reservation
             bookings.generate_ticket(booking_data)  # Make a confirmed booking
