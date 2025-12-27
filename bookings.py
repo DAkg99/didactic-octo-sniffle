@@ -12,6 +12,7 @@ from storage import random_uid_generator, booking_data_key
 
 @dataclass(frozen=True)
 class Booking:
+    max_reserve_mins: ClassVar[int] = 15
     current_items: ClassVar[dict[str, Self]] = {}
     showtime: movies.Showtime
     name: str
@@ -20,6 +21,7 @@ class Booking:
     issued: dt.datetime
     cost: float
     seats: list[tuple]
+    confirmed: bool
     uid: str = field(default='', compare=False)  # Mutable (set post init)
 
     def __post_init__(self):
@@ -31,6 +33,10 @@ class Booking:
         Booking.current_items[self.uid] = self
         self.showtime.booking_new(self)
 
+    @property
+    def minutes_since_issued(self):
+        return (dt.datetime.now() - self.issued) / dt.timedelta(minutes=1)
+
     @classmethod
     def from_dict(cls, book_dict: dict):
         return cls(
@@ -38,9 +44,10 @@ class Booking:
             book_dict["name"],
             book_dict["age"],
             book_dict["email"],
-            dt.datetime.strptime(book_dict["issued"], "%Y-%m-%d %H:%M"),
+            dt.datetime.fromisoformat(book_dict["issued"]),
             book_dict["cost"],
             [tuple([int(value) for value in seat.split("-")]) for seat in book_dict["seats"].split(", ")],
+            book_dict["confirmed"],
             book_dict.get("uid", '')
         )
 
@@ -50,16 +57,16 @@ class Booking:
             "name": self.name,
             "age": self.age,
             "email": self.email,
-            "issued": self.issued.strftime("%Y-%m-%d %H:%M"),
+            "issued": str(self.issued),
             "cost": self.cost,
             "seats": ", ".join([f"{seat[0]}-{seat[1]}" for seat in self.seats]),
+            "confirmed": self.confirmed,
             "uid": self.uid
         }
 
-    def delete_self(self):
+    def remove_self(self):
         Booking.current_items.pop(self.uid)
         self.showtime.booking_remove(self)
-        del self
 
     def pretty_string(self):
         return (f"{self.showtime.pretty_string(short=True)}\n"
@@ -85,8 +92,9 @@ def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     booking_dict["showtime_id"] = showtime.uid
     booking_dict["seats"] = ", ".join([f"{seat[0]}-{seat[1]}" for seat in seats])
     booking_dict["name"], booking_dict["age"], booking_dict["email"] = _ask_user_info()
-    booking_dict["issued"] = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    booking_dict["issued"] = dt.datetime.now().isoformat()
     booking_dict["cost"] = calc_total(pricing_data, booking_dict)
+    booking_dict["confirmed"] = True
     return booking_dict
 
 def cancel_booking(booking_id: str, policy: dict) -> bool:
@@ -113,8 +121,9 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
               f"about to begin in {policy['purchase_time_limit_hours']} hours")
         return False
     # Grant refund.
-    booking.delete_self()
     print(f"{booking.cost}₺ has been refunded to your account.")
+    booking.remove_self()
+    del booking
     return True
 
 def calc_total(pricing: dict, booking_data: dict) -> int:
@@ -144,7 +153,6 @@ def payment(cost: float, showtime, seats_formatted: list[str], reserve_id) -> bo
     else:
         print("Payment successful.")
         success = True
-    showtime.reserve_seats_remove(reserve_id)  # Release seats either way.
     return success
 
 def list_customer_bookings(email: str) -> list:
@@ -155,7 +163,7 @@ def list_customer_bookings(email: str) -> list:
     return booking_list
 
 def generate_ticket(booking_data: dict):
-    booking_id = Booking.from_dict(booking_data)
+    booking_id = Booking.from_dict(booking_data).uid
     print(f"Booking made successfully.\n"
           f"{'-' * 10} SAVE YOUR BOOKING ID {'-' * 10}\n"
           f"Booking ID: {booking_id}\n"

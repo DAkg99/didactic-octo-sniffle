@@ -1,7 +1,7 @@
 [
     {
         "movie_id": "test1",
-        "datetime": "2026-01-02 16:45:00.000000",
+        "datetime": "2026-01-02 16:45:00",
         "screen": 1,
         "attendees": 0,
         "language": "turkish",
@@ -10,7 +10,7 @@
     },
     {
         "movie_id": "test2",
-        "datetime": "2026-01-02 19:45:00.000000",
+        "datetime": "2026-01-02 19:45:00",
         "screen": 2,
         "attendees": 0,
         "language": "turkish",
@@ -19,7 +19,7 @@
     },
     {
         "movie_id": "test1",
-        "datetime": "2026-01-03 12:35:00.000000",
+        "datetime": "2026-01-03 12:35:00",
         "screen": 3,
         "attendees": 0,
         "language": "esperanto",
@@ -28,9 +28,9 @@
     },
     {
         "movie_id": "test3",
-        "datetime": "2026-01-03 16:45:00.000000",
+        "datetime": "2026-01-03 16:45:00",
         "screen": 1,
-        "attendees": 2,
+        "attendees": 8,
         "language": "n/a",
         "pricing_tier": 1,
         "uid": 4

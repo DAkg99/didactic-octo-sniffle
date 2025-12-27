@@ -94,7 +94,6 @@ class Showtime:
     seat_layout: tuple = (15, 10)                 # Columns, Rows
     full: bool = False                            # Automatically set.
     max_attendees: int = 0                        # Automatically set upon init.
-    temporarily_reserved_seats: dict = field(default_factory=dict)
 
     def __post_init__(self):
         # Sets up ID, max attendee count, and adds itself to the list of showtimes.
@@ -128,11 +127,17 @@ class Showtime:
     @property
     def occupied_seats(self) -> dict[str, list]:
         occupied = {
-            "reserved": [item for value in self.temporarily_reserved_seats.values() for item in value],
+            "reserved": [],
             "confirmed": []
         }
         for booking in self.bookings:
-            occupied["confirmed"] += booking.seats
+            if booking.confirmed:
+                occupied["confirmed"] += booking.seats
+            elif booking.minutes_since_issued < booking.max_reserve_mins:
+                occupied["reserved"] += booking.seats
+            else:
+                # Booking is a reservation but it has expired. Delete it.
+                booking.remove_self()
         return occupied
     @property
     def editable_attribute_dict_keys(self) -> list:
@@ -172,6 +177,10 @@ class Showtime:
         self.pricing_tier = data_dict["pricing_tier"]
         self.uid = data_dict["uid"]
 
+    def remove_self(self):
+        self.movie.showtime_rem(self)
+        self.current_items.pop(self.uid)
+
     def booking_new(self, booking):
         self.bookings.append(booking)
         self.__update_attendee_count()
@@ -181,16 +190,6 @@ class Showtime:
         self.bookings.remove(booking)
         self.__update_attendee_count()
         self.__update_fullness_status()
-
-    def reserve_seats_add(self, seats: list) -> str:
-        # Generate unique reservation ID and save reserved seats with ID as the key. Key is returned.
-        reserve_uid = storage.random_uid_generator(self.temporarily_reserved_seats.keys())
-        self.temporarily_reserved_seats[reserve_uid] = seats
-        return reserve_uid
-
-    def reserve_seats_remove(self, reserve_uid: str):
-        if reserve_uid in self.temporarily_reserved_seats.keys():
-            self.temporarily_reserved_seats.pop(reserve_uid)
 
     def __update_attendee_count(self):
         self.attendees = len([seat for seat in [booking.seats for booking in self.bookings]])
@@ -285,29 +284,24 @@ def remove_showtime(showtime: Showtime, force: bool = False):
     """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
     # Simply delete if forced to, or if there are no bookings to worry about.
     if force or (len(showtime.bookings) == 0):
-        for booking in showtime.bookings[::-1]:
-            booking.delete_self()
-        showtime.movie.showtime_rem(showtime)
-        Showtime.current_items.pop(showtime.uid)
-        del showtime
-        return
-
-    # There are bookings; check if this showing has already occurred or not.
-    if showtime.datetime > dt.datetime.now():
-        print(f"There are active bookings for this showtime. Retiring the showtime will delete these bookings as well.\n"
-              f"It is NOT recommended you retire this showtime without refunding the customers first.")
-        confirm = (input("Retire showtime? (y/n): ").lower().strip() == "y")
+        confirm = True
     else:
-        print(f"Retiring this showtime will discard its booking data.")
-        confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
-    if confirm:
+        # There are bookings; check if this showing has already occurred or not.
+        if showtime.datetime > dt.datetime.now():
+            print(f"There are active bookings for this showtime. Retiring the showtime will delete these bookings as well.\n"
+                  f"It is NOT recommended you retire this showtime without refunding the customers first.")
+            confirm = (input("Retire showtime? (y/n): ").lower().strip() == "y")
+        else:
+            print(f"Retiring this showtime will discard its booking data.")
+            confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
+    if not confirm:
+        print("Showtime deletion aborted.")
+    else:
         for booking in showtime.bookings:
-            booking.delete_self()
-        showtime.movie.showtime_rem(showtime)
-        Showtime.current_items.pop(showtime.uid)
+            booking.remove_self()
+            del booking
+        showtime.remove_self()
         del showtime
-    else:
-        print("Movie deletion aborted.")
 
 def update_showtime(showtime):
     """Prompt user for new data and update showtime accordingly."""

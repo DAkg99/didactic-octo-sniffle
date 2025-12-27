@@ -10,6 +10,7 @@ import movies
 import storage
 import seating
 import reports
+from seating import is_seat_available
 
 # Main Menu/
 # ├── Admin Menu/
@@ -51,24 +52,18 @@ import reports
 
 # Working on:
 # General clean up
-# Move reservation logic completely to booking. Reserved seats should be 'unconfirmed' bookings.
-# Fix booking printing
+# Seating: Map: Add legend
+# Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
 
 # To-do:
-# Seating: Map: Add legend
 # Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
-# Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
-# Main: Booking: New: Differentiate "reserved" and "sold" in seat map.
-# Admin: Reporting & Analytics: Export: Disallow illegal file characters maybe.
-# Main: Schedule Viewing: Pretty Print
 # Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
 
 # Extra To-dos:
+# Admin: Reporting & Analytics: Export: Disallow illegal file characters maybe.
 # General: Put load_state() before any action that is about to save state, so they change the most recent date.
-# Main: Booking: Instead of running a timer, save reserved seats with the time they're issued at. When fetching
-#  reserved seats, ones older than X minutes can automatically be deleted.
 # Main: Booking menu: New: Add a ----screen---- line to seat map.
 # Main: Schedule Viewer: Send user to create new booking.
 # Main: Schedule Viewer: Non-exact search for movie title.
@@ -213,6 +208,7 @@ book_selector = MenuSelector(
     "Booking options:", [                                   # 1.3 Booking
         {"back": "[Go back]"},                              # BACK
         {"new_book": "Make a new booking"},                 # Action
+        {"cont_book": "Resume booking process"},            # Action
         {"view_book": "View current bookings"},             # Action
         {"remove_book": "Cancel a booking"}])               # Action
 
@@ -294,6 +290,8 @@ def book_menu():
                 return
             case "new_book":
                 new_booking_action()
+            case "cont_book":
+                new_booking_action(cont_booking_action())
             case "view_book":
                 view_booking_action()
             case "remove_book":
@@ -382,16 +380,59 @@ def movie_details_action():
     movie_pretty_print(movie)
 
 ### Booking Actions-----
-def new_booking_action():
-    showing = dynamic_select_showtime("Select a scheduled showing:")
-    if not showing:
+def new_booking_action(reservation: bookings.Booking = None):
+    if reservation:
+        showing, seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
+    else:
+        showing = dynamic_select_showtime("Select a scheduled showing:")
+        if not showing:
+            return  # Showing selection cancelled
+        seats = seating.select_seats(showing)
+        if not seats:
+            return  # Seating selection cancelled
+        # Reserve seats.
+        reserve_id, reservation = seating.reserve_seats(seats, showing, bookings.Booking)
+        print(f"Seats reserved for {bookings.Booking.max_reserve_mins} minutes.\n"
+              f"Use code below to resume booking if you leave:\n"
+              f"CODE: {reserve_id}")
+        pause_confirm()
+    formatted_seats = [seating.raw2format(seat) for seat in seats]
+    booking_data = bookings.new_booking(showing, seats, pricing_data)  # Generate booking data
+    if bookings.payment(booking_data["cost"], showing, formatted_seats, reserve_id):
+        if is_seat_available(formatted_seats, showing, reservation):  # Make sure user's seats weren't snagged.
+            reservation.remove_self()  # Delete reservation if payment succeeds
+            del reservation
+            bookings.generate_ticket(booking_data)  # Make a confirmed booking
+        else:
+            print("Your payment has been refunded.")
+    else:
+        if (reservation.max_reserve_mins - reservation.minutes_since_issued) > 0:
+            print(f"You can use your code to continue your booking process within "
+                  f"{reservation.minutes_since_issued - reservation.max_reserve_mins} minutes.")
         return
-    seats, reserve_id = seating.select_seats(showing)  # Select seats
-    if not seats:
-        return
-    booking_data = bookings.new_booking(showing, seats["tuple"], pricing_data)  # Generate booking data
-    if bookings.payment(booking_data["cost"], showing, seats["formatted"], reserve_id):
-        bookings.generate_ticket(booking_data)  # Generate ticket if payment success
+
+def cont_booking_action():
+    reserve_id = input("Enter code: ").lower().strip()
+    if (not reserve_id) or (reserve_id == "q"):
+        return None
+    # Try to load reservation data
+    reservation = bookings.Booking.current_items.get(reserve_id, None)
+    if (not reservation) or reservation.confirmed:
+        print("Invalid code!")
+        return None
+    elif reservation.minutes_since_issued >= reservation.max_reserve_mins:
+        reservation.remove_self()
+        del reservation
+        print("Code has expired!")
+        return None
+    else:
+        # Refresh reservation and continue booking
+        seats, showing = reservation.seats, reservation.showtime
+        reservation.remove_self()
+        del reservation
+        seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
+        print(f"Continuing booking for {showing.pretty_string(short=True)}")
+        return bookings.Booking.current_items[reserve_id]
 
 def view_booking_action():
     search_email = input("Enter your email ('q' to go back): ").lower().strip()
