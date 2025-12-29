@@ -32,7 +32,7 @@ class Movie:
     def pretty_string(self):
         return (f"Title: {self.title}\n"
           f"Genre: {', '.join(list(map(str, self.genre))).capitalize()}\n"
-          f"Duration: {str(self.duration.seconds//3600)}H{str(self.duration.seconds//60)}M\n"
+          f"Duration: {str(self.duration.seconds//3600)}H{str((self.duration.seconds//60) % 60)}M\n"
           f"Rating: {self.rating:.2f}/5.00\n"
           f"Description: {self.description}")
 
