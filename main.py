@@ -323,7 +323,7 @@ def admin_reports_menu():
                         continue
                 print_dict(reports.revenue_summary(bookings_list, showtime_list, dates))
             case "top_movies":
-                print_list(reports.top_movies(list(movies.Showtime.current_items.values())))
+                print_list(reports.top_movies(list(movies.Showtime.current_items.values())), double_spaced=True)
             case _:
                 raise NotImplementedError
         pause_confirm()
