@@ -1,29 +1,47 @@
 [
     {
-        "movie_id": "test2",
-        "datetime": "2026-01-02 19:45:00",
-        "screen": 2,
+        "movie_id": "edc2b5b1",
+        "datetime": "2020-01-01 18:00",
+        "screen": 1,
         "attendees": 0,
-        "language": "turkish",
-        "pricing_tier": 5,
-        "uid": 2
-    },
-    {
-        "movie_id": "5e7692c6",
-        "datetime": "2028-01-01 12:15:00",
-        "screen": 5,
-        "attendees": 0,
-        "language": "qwerty",
-        "pricing_tier": 2,
+        "language": "english",
+        "pricing_tier": 1,
         "uid": 1
     },
     {
-        "movie_id": "5e7692c6",
-        "datetime": "2010-10-10 10:10:00",
-        "screen": 123,
+        "movie_id": "edc2b5b1",
+        "datetime": "2030-10-30 20:15",
+        "screen": 1,
         "attendees": 0,
-        "language": "werwer",
+        "language": "turkish",
+        "pricing_tier": 1,
+        "uid": 2
+    },
+    {
+        "movie_id": "edc2b5b1",
+        "datetime": "2030-10-30 20:15",
+        "screen": 2,
+        "attendees": 1,
+        "language": "english",
         "pricing_tier": 1,
         "uid": 3
+    },
+    {
+        "movie_id": "9f1368cb",
+        "datetime": "2026-03-14 15:15",
+        "screen": 6,
+        "attendees": 1,
+        "language": "swedish",
+        "pricing_tier": 5,
+        "uid": 4
+    },
+    {
+        "movie_id": "6751b907",
+        "datetime": "2026-09-09 08:15",
+        "screen": 4,
+        "attendees": 1,
+        "language": "english",
+        "pricing_tier": 3,
+        "uid": 5
     }
 ]

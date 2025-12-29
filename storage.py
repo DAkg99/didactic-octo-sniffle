@@ -26,7 +26,7 @@ def random_uid_generator(existing_uids: Container, length: int = 8) -> str:
 
 def validate_showtime(new_showtime_data: dict):
     new_screen = new_showtime_data["screen"]
-    new_start = dt.datetime.fromisoformat(new_showtime_data["datetime"])
+    new_start = dt.datetime.strptime(new_showtime_data["datetime"], "%Y-%m-%d %H:%M")
     new_end = new_start + movies.Movie.current_items.get(new_showtime_data["movie_id"]).duration
     for showtime in movies.Showtime.current_items.values():
         if not showtime.screen == new_screen:

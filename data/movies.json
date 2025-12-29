@@ -1,24 +1,37 @@
 [
     {
-        "title": "Hello Kitty 2",
-        "genre": [
-            "horror",
-            "comedy"
-        ],
-        "duration": 138,
-        "description": "Dumb cat does things worse.",
-        "rating": 2.0,
-        "uid": "test2"
-    },
-    {
-        "title": "Testo",
+        "title": "Jurassic Fart",
         "genre": [
             "comedy",
-            "feline"
+            "science fiction",
+            "action"
         ],
-        "duration": 1555,
-        "description": "GWAFEAD",
-        "rating": 3.2222,
-        "uid": "5e7692c6"
+        "duration": 164,
+        "description": "Mad scientist brings back the dinosaurs with a stinky twist.",
+        "rating": 0.3,
+        "uid": "edc2b5b1"
+    },
+    {
+        "title": "Eighth Seal",
+        "genre": [
+            "drama",
+            "fantasy"
+        ],
+        "duration": 154,
+        "description": "Swedish knight must beat Death in Go.",
+        "rating": 4.8,
+        "uid": "9f1368cb"
+    },
+    {
+        "title": "Equilibrium",
+        "genre": [
+            "action",
+            "thriller",
+            "science fiction"
+        ],
+        "duration": 107,
+        "description": "Sean Bean's ability to feel emotions makes Christian Bale upset.",
+        "rating": 5.0,
+        "uid": "6751b907"
     }
 ]

@@ -153,7 +153,7 @@ class Showtime:
     def from_dict(cls, show_dict: dict):
         return cls(
             Movie.current_items[show_dict["movie_id"]],
-            dt.datetime.fromisoformat(show_dict["datetime"]),
+            dt.datetime.strptime(show_dict["datetime"], "%Y-%m-%d %H:%M"),
             show_dict["screen"],
             0,
             show_dict["language"],
@@ -165,7 +165,7 @@ class Showtime:
     def to_dict(self):
         return {
             "movie_id": self.movie.uid,
-            "datetime": str(self.datetime),
+            "datetime": self.datetime.strftime("%Y-%m-%d %H:%M"),
             "screen": self.screen,
             "attendees": self.attendees,
             "language": self.language,
@@ -176,7 +176,7 @@ class Showtime:
     def update_from_dict(self, data_dict: dict):
         """Updates all values except bookings"""
         self.movie = Movie.current_items[data_dict["movie_id"]]
-        self.datetime = dt.datetime.fromisoformat(data_dict["datetime"])
+        self.datetime = dt.datetime.strptime(data_dict["datetime"], "%Y-%m-%d %H:%M")
         self.screen = data_dict["screen"]
         self.attendees = data_dict["attendees"]
         self.language = data_dict["language"]
@@ -317,10 +317,8 @@ def list_showtimes(search_value: str | None = None, only_future: bool = False) -
     # Only_future flag ensures that only future showings are shown (this is for customer convenience).
     showtimes = list(Showtime.current_items.values())
     if not search_value:
-        if not only_future:
-            return showtimes
-        else:
-            return [showtime for showtime in showtimes if showtime.datetime > dt.datetime.now()]
+        filtered_showtimes = showtimes
+        fail_string = f"No showing available."
     else:
         # Search through results. Evaluate search_value as datetime if possible; as title-string otherwise.
         filtered_showtimes = []
@@ -339,7 +337,7 @@ def list_showtimes(search_value: str | None = None, only_future: bool = False) -
         filtered_showtimes = [showtime for showtime in filtered_showtimes if showtime.datetime > dt.datetime.now()]
     if not filtered_showtimes:
         return [fail_string]
-    return filtered_showtimes
+    return sorted(filtered_showtimes, key=lambda st: st.datetime)
 
 # Helper functions--------
 def _prompt_for_movie_data() -> dict:

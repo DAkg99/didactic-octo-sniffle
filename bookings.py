@@ -97,7 +97,7 @@ def new_booking(showtime, seats: list[tuple], pricing_data: dict) -> dict:
     booking_dict["confirmed"] = True
     return booking_dict
 
-def cancel_booking(booking_id: str, policy: dict) -> bool:
+def cancel_booking(booking_id: str, policy: dict, force: bool = False) -> bool:
     """Cancels booking of given ID"""
     # Verify that booking with such ID exists.
     booking = Booking.current_items.get(booking_id, None)
@@ -107,9 +107,12 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
     # See if customer can get a refund.
     hours_since_purchase = (dt.datetime.now() - booking.issued) / dt.timedelta(hours=1)
     hours_til_showtime = (booking.showtime.datetime - dt.datetime.now()) /  dt.timedelta(hours=1)
-    if input(f"{booking.pretty_string()}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
-        print("Please enter a different booking ID.")
-        return False
+    if force:
+        pass  # Don't prompt user to make sure they're cancelling the wrong ticket.
+    else:
+        if input(f"{booking.pretty_string()}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
+            print("Please enter a different booking ID.")
+            return False
     if hours_since_purchase > policy["purchase_time_limit_hours"]:
         print(f"No refund available: {policy['purchase_time_limit_hours']} hours have passed since purchase.")
         return False
@@ -121,7 +124,7 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
               f"about to begin in {policy['purchase_time_limit_hours']} hours")
         return False
     # Grant refund.
-    print(f"{booking.cost}₺ has been refunded to your account.")
+    print(f"{booking.cost:.02f}₺ has been refunded to your account.")
     booking.remove_self()
     del booking
     return True

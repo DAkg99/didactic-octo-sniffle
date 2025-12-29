@@ -12,39 +12,6 @@ import reports
 from seating import is_seat_available
 
 
-# Start Menu/
-# │
-# ├── 1.Main Menu/
-# │   ├── Movie Info
-# │   ├── Schedule Info
-# │   ├── New Booking
-# │   ├── View Bookings
-# │   ├── Cancel Booking
-# │   └── Continue Booking
-# │
-# └── 2.Admin Menu/
-#     ├── Add Movie
-#     ├── Remove Movie
-#     ├── Add Showtime
-#     ├── Remove Showtime
-#     ├── Edit Showtime
-#     ├── 2.1.Reports/
-#     │   ├── Export Reports
-#     │   ├── Occupancy Report
-#     │   ├── Revenue Report
-#     │   └── Top Movies Report
-#     └── 2.2.Backups/
-#         ├── Save Backup
-#         └── Load Backup
-
-# Done:
-# Main: Schedule Viewing
-# Main: Movie Details
-# Main: Booking
-# Admin: Movies & Showtimes
-# Admin: Reporting & Analytics
-# Admin: Storage & Backups
-
 
 # Theater name
 theater_name = "Testificate"
@@ -86,6 +53,31 @@ for file_name in ["movies.json", "showtimes.json", "bookings.json"]:
             new_file.write("[]")
 # Load date into memory
 storage.load_state(data_path)
+
+# Start Menu/
+# │
+# ├── 1.Main Menu/
+# │   ├── Movie Info
+# │   ├── Schedule Info
+# │   ├── New Booking
+# │   ├── View Bookings
+# │   ├── Cancel Booking
+# │   └── Continue Booking
+# │
+# └── 2.Admin Menu/
+#     ├── Add Movie
+#     ├── Remove Movie
+#     ├── Add Showtime
+#     ├── Remove Showtime
+#     ├── Edit Showtime
+#     ├── 2.1.Reports/
+#     │   ├── Export Reports
+#     │   ├── Occupancy Report
+#     │   ├── Revenue Report
+#     │   └── Top Movies Report
+#     └── 2.2.Backups/
+#         ├── Save Backup
+#         └── Load Backup
 
 
 @dataclass
@@ -173,7 +165,7 @@ class MenuSelector:
 
 # Initialise menu selection instances
 start_screen = MenuSelector(
-    f"Booking System for {theater_name} Theater", [             # Startup
+    f"Please select a menu to use: ", [                         # Startup
         {"quit": "Quit Applet"},                                # EXIT
         {"main": "Customer Menu"},                              # 1.Submenu
         {"admin": "Administrative Menu"}])                      # 2.Submenu
@@ -420,7 +412,6 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
 
 def dynamic_select_showtime(prompt: str = "", only_future: bool = False) -> movies.Showtime | None:
     """Summon a menu where the user can pick a showtime."""
-    
     if not prompt:
         prompt = "Select a scheduled showing: "
     temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache it in case edited during choice
@@ -428,6 +419,8 @@ def dynamic_select_showtime(prompt: str = "", only_future: bool = False) -> movi
         showtimes = [{key: value.pretty_string()} for key, value in temp_showtime_dict.items() if value.datetime > dt.datetime.now()]
     else:
         showtimes = [{key: value.pretty_string()} for key, value in temp_showtime_dict.items()]
+    # Sort the showtimes so the closest showtimes are at the bottom.
+    showtimes = sorted(showtimes, key=lambda x: temp_showtime_dict[next(iter(x.keys()))].datetime, reverse=True)
     user_choice = MenuSelector.dynamic_selector(
         prompt,
         showtimes
@@ -484,4 +477,9 @@ def _text_padding_shortening(my_string: str, char_limit: int) -> str:
 
 
 # START
-start_menu()
+def main():
+    start_menu()
+
+if __name__=="__main__":
+    print(f"Welcome to {theater_name} Theater!")
+    main()
