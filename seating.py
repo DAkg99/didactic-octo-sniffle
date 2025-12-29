@@ -32,7 +32,8 @@ def get_seat_map(showing):
     return new_map
 
 def is_seat_available(seats: list[str | tuple], showing, user_reservation = None) -> bool:
-    """Check if seat input is valid and available"""
+    """Check if seat input is valid and available."""
+
     for seat in seats:
         if not type(seat) == tuple:
             # Check format & convert if seat isn't given as a tuple.
@@ -86,6 +87,9 @@ def reserve_seats(seats: list[tuple], showing, booking_cls, reserve_id = '') -> 
             confirmed = False,
             uid = reserve_id
         )
+    if not reserve_id:
+        # Don't print this if this isn't a new reservation.
+        print(f"Seats reserved for {booking_cls.max_reserve_mins} minutes.")
     return reserve
 
 

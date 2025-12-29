@@ -238,28 +238,25 @@ def main_menu():
             case "exit":
                 return
             case "imdb":
-                if movie := dynamic_select_movie("Select a movie to learn more about it:"):
+                if movie := dynamic_select_movie("Select a movie to learn more about it: "):
                     movie_pretty_print(movie)
-                    pause_confirm()
             case "schedule":
-                movies.list_showtimes(input("Enter date or title to search, or leave blank to view all: ").strip())
-                pause_confirm()
+                if (search_term := input("Enter date/title to search, or blank to view all: ").lower().strip()) != "q":
+                    movies.list_showtimes(search_term)
             case "new_book":
-                new_booking_action()
+                booking_process_handler()
             case "view_book":
-                search_email = input("Enter your email ('q' to go back): ").lower().strip()
-                if search_email == "q":
-                    return
-                print_list(bookings.list_customer_bookings(search_email), True)
+                if (search_email := input("Enter your email ('q' to go back): ").lower().strip()) != "q":
+                    print_list(bookings.list_customer_bookings(search_email), True)
             case "canc_book":
-                booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").lower().strip()
-                if booking_id == "q":
-                    return
-                bookings.cancel_booking(booking_id, booking_refund_policy)
+                if (booking_id := input("Enter the booking ID you'd like to cancel: ").lower().strip()) != "q":
+                    bookings.cancel_booking(booking_id, booking_refund_policy)
             case "cont_book":
-                new_booking_action(cont_booking_action())
+                if (reserve_id := input("Enter code ('q' to go back): ").lower().strip()) != "q":
+                    cont_booking_action(reserve_id)
             case _:
                 raise NotImplementedError
+        pause_confirm()
 
 
 def admin_menu():
@@ -322,56 +319,49 @@ def admin_backups_menu():
 # Actions--------
 
 ### Booking Actions-----
-def new_booking_action(reservation: bookings.Booking = None):
-    if reservation:  # Skip seat/showing selection
-        showing, seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
-    else:  # Proceed with seat/showing selection
-        showing = dynamic_select_showtime("Select a scheduled showing:")
-        if not showing:
-            return  # Showing selection cancelled by user.
-        seats = seating.select_seats(showing)
-        if not seats:
-            return  # Seating selection cancelled by user.
-        reservation = seating.reserve_seats(seats, showing, bookings.Booking)
-        print(f"Seats reserved for {bookings.Booking.max_reserve_mins} minutes.")
-    booking_data = bookings.new_booking(showing, seats, pricing_data)  # Make booking data (asks for user details).
-    if bookings.payment_success(booking_data["cost"], showing, [seating.raw2format(seat) for seat in seats]):
-        if not is_seat_available(seats, showing, reservation):
-            print("Your payment has been cancelled.")  # Seats are no longer available
-        else:
-            print("Payment successful.")
-            reservation.remove_self()
-            del reservation
-            bookings.generate_ticket(booking_data)  # Success.
-    else:
-        print("Payment aborted by user.")
-        if (reservation.max_reserve_mins - reservation.minutes_since_issued) > 0:
-            print(f"Code to resume booking: {reservation.uid}\n"
-                  f"Your seats are reserved for: {reservation.max_reserve_mins - reservation.minutes_since_issued:.01f} minutes")
-        return
+def booking_process_handler(reservation: bookings.Booking = None):
+    if not (showing := dynamic_select_showtime() if not reservation else reservation.showtime):
+        return  # Showtime selection aborted by user
+    if not (seats := seating.select_seats(showing) if not reservation else reservation.seats):
+        return  # Seat selection aborted by user
+    reservation = seating.reserve_seats(seats, showing, bookings.Booking) if not reservation else reservation
+    if not bookings.payment(booking_data := bookings.new_booking(showing, seats, pricing_data)):
+        print(f"Payment cancelled.")
+        if reserve_time_left := (reservation.max_reserve_mins - reservation.minutes_since_issued) >= 1:
+            print(f"Seats reserved for {reserve_time_left:.01f} minutes.\n"
+                  f"Use code to continue booking: {reservation.uid}")
+        return  # Payment cancelled by user
+    elif not is_seat_available(seats, showing, reservation):
+        print("Your payment has been cancelled.")
+        return  # User's seats are no longer available
+    print("Payment successful.")
+    reservation.remove_self()  # Booking complete: delete reservation
+    del reservation
+    bookings.generate_ticket(booking_data)
 
-def cont_booking_action():
+
+def cont_booking_action(reserve_id: str):
     """Asks for reservation code; returns reservation (and refreshes its duration) if valid."""
-    reserve_id = input("Enter code: ").lower().strip()
     if (not reserve_id) or (reserve_id == "q"):
-        return None  # User abort
+        return  # Process aborted by user.
     reservation = bookings.Booking.current_items.get(reserve_id, None)
     if (not reservation) or reservation.confirmed:
-        print("Invalid code!")  # No such reservation
-        return None
+        print("Invalid code!")
+        return  # No such reservation exists.
     elif reservation.minutes_since_issued >= reservation.max_reserve_mins:
-        print("Code has expired!")  # Expired reservation; delete it
+        print("Code has expired!")
         reservation.remove_self()
         del reservation
-        return None
+        return  # Reservation has expired (and now deleted).
     else:
-        # Reservation is valid: delete & reinitialise it to refresh its remaining duration.
+        # Valid reservation: refresh its duration and continue booking process.
         seats, showing = reservation.seats, reservation.showtime
         reservation.remove_self()
         del reservation
         refreshed_reservation = seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
         print(f"Continuing booking for {showing.pretty_string(short=True)}")
-        return refreshed_reservation
+        booking_process_handler(refreshed_reservation)
+
 
 ## Admin Movie Actions-----
 def admin_new_movie_action():
@@ -442,7 +432,9 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
         return None
     return temp_movie_dict[user_choice]
 
-def dynamic_select_showtime(prompt: str) -> movies.Showtime | None:
+def dynamic_select_showtime(prompt: str = "") -> movies.Showtime | None:
+    if not prompt:
+        prompt = "Select a scheduled showing: "
     temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache it in case edited during choice
     user_choice = MenuSelector.dynamic_selector(
         prompt,

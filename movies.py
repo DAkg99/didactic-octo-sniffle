@@ -322,7 +322,7 @@ def list_showtimes(search_value: str | None = None) -> list:
         except ValueError:
             fail_string = f"No showings found for movie: {search_value}"
             for item in showtimes:
-                if item.movie.title.lower() == search_value.lower():
+                if item.movie.title.lower() == search_value:
                     filtered_showtimes.append(item)
     if not filtered_showtimes:
         return [fail_string]
