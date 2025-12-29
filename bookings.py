@@ -7,7 +7,7 @@ from typing import ClassVar, Self
 import datetime as dt
 import movies
 
-from storage import random_uid_generator, booking_data_key
+from storage import random_uid_generator
 
 
 @dataclass(frozen=True)

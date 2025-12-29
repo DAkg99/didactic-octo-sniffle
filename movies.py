@@ -7,8 +7,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import ClassVar, Self
 
-import storage
-from storage import random_uid_generator
+from storage import random_uid_generator, validate_showtime
 
 @dataclass(frozen=True)
 class Movie:
@@ -269,16 +268,13 @@ def save_showtimes(path: str) -> None:
         json.dump([showtime.to_dict() for showtime in Showtime.current_items.values()], showtimes_f, indent=4)
 
 def schedule_showtime(movie: Movie):
-    showtime_dict = _prompt_for_showtime_data(movie)
-    new_showtime = Showtime.from_dict(showtime_dict)
-    if _duplicate_checker(new_showtime):
-        abort = input("Identical showtime already exists. Abort? (y/n): ").strip().lower()
-        if abort != "y":
-            remove_showtime(new_showtime)
-            print("New showtime scheduling cancelled.")
-            return
+    new_showtime_dict = _prompt_for_showtime_data(movie)
+    if not validate_showtime(new_showtime_dict):
+        print("Showtime scheduling aborted due to conflict. ")
+        return False
+    Showtime.from_dict(new_showtime_dict)
     print("New showtime scheduled successfully.")
-    return
+    return True
 
 def remove_showtime(showtime: Showtime, force: bool = False):
     """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
@@ -375,8 +371,10 @@ def _prompt_for_showtime_data(movie) -> dict:
         try:
             new_showtime["datetime"] = input("Enter date and time (YYYY-MM-DD HH:MM): ")
             dt.datetime.strptime(new_showtime["datetime"] , "%Y-%m-%d %H:%M")
+            break
         except (ValueError, TypeError, NameError):
             input("Invalid date/time format.")
+    return new_showtime
 
 def _prompt_for_updated_showtime_data(showtime) -> dict:
     showtime_data = showtime.to_dict()

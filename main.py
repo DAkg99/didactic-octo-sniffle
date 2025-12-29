@@ -50,8 +50,6 @@ from seating import is_seat_available
 
 # Working on:
 # General clean up
-# Main: Booking: New: Tell user that they already booked for showtime & ask to confirm.
-# Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
 
 # To-do:
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
@@ -239,11 +237,10 @@ admin_backups_selector = MenuSelector(
         {"back": "[Go back]"},                              # BACK
         {"save_backup": "Create a manual backup of data"},  # Action
         {"load_backup": "Load a saved backup file."}])      # Action
-        #{"": ""},
-        #{"": ""}])
 
 
 ### Menus
+
 def main_menu():
     clear_terminal()
     while True:
@@ -427,11 +424,10 @@ def cont_booking_action():
         del reservation
         return None
     else:
-        # Reservation is valid: delete it...
+        # Reservation is valid: delete & reinitialise it to refresh its remaining duration.
         seats, showing = reservation.seats, reservation.showtime
         reservation.remove_self()
         del reservation
-        # ... and make a new one in order to refresh its remaining duration.
         refreshed_reservation = seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
         print(f"Continuing booking for {showing.pretty_string(short=True)}")
         return refreshed_reservation
@@ -459,13 +455,8 @@ def admin_remove_movie_action():
     movies.remove_movie(movie)
 
 def admin_new_showing_action():
-    admin_choice = MenuSelector.dynamic_selector(
-        "Select a movie to create a showing for:",
-        cached_movies := [movie for movie in movies.Movie.current_items.values()])
-    if admin_choice == "back":
-        return
-    showing_movie = cached_movies[int(admin_choice) - 1]
-    movies.schedule_showtime(showing_movie)
+    selected_movie = dynamic_select_movie("Select a movie to schedule a new showing for: ")
+    movies.schedule_showtime(selected_movie)
 
 def admin_edit_showing_action():
     showing = dynamic_select_showtime("Select a showing to edit:")

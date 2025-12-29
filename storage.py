@@ -56,6 +56,23 @@ def user_input_verified_date(mode: str = "datetime", prompt_override: str = "") 
             except (ValueError, TypeError):
                 print("Invalid format.")
 
+def validate_showtime(new_showtime_data: dict):
+    new_screen = new_showtime_data["screen"]
+    new_start = dt.datetime.fromisoformat(new_showtime_data["datetime"])
+    new_end = new_start + movies.Movie.current_items.get(new_showtime_data["movie_id"]).duration
+    for showtime in movies.Showtime.current_items.values():
+        if not showtime.screen == new_screen:
+            pass
+        elif new_start < showtime.datetime and not (new_end < showtime.datetime):
+            # There exists a showing which begins before this new one ends.
+            print(f"New showing would conflict with:\n {showtime.pretty_string(short=True)}\nAborting...")
+            return False
+        elif new_start >= showtime.datetime and not (new_start >= showtime.datetime + showtime.movie.duration):
+            # New showing begins before an older one ends.
+            print(f"New showing would conflict with:\n {showtime.pretty_string(short=True)}\nAborting...")
+            return False
+    return True
+
 
 def load_state(path: str):
     movies.load_movies(path)
