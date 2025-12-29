@@ -305,24 +305,28 @@ def update_showtime(showtime):
     showtime.update_from_dict(updated_data)
     print(f"Updated showing: \n{showtime}")
 
-def list_showtimes(search_value: str | dt.datetime | None = None) -> list:
-    """Lists showtimes, with optional search parameter"""
+def list_showtimes(search_value: str | None = None) -> list:
+    """Lists showtimes. Ask_User flag determines whether function should prompt for search options."""
     showtimes = list(Showtime.current_items.values())
     if not search_value:
-        return showtimes
-    requested_showtimes = []
-    if isinstance(search_value,dt.datetime):
-        for item in showtimes:
-            if item.datetime.date() == search_value.date():
-                requested_showtimes.append(item)
+        return showtimes  # Return all showings.
     else:
-        for item in showtimes:
-            if item.movie.title == search_value:
-                requested_showtimes.append(item)
-    if not requested_showtimes:
-        return ["No showings found."]
-    return requested_showtimes
-
+        # Search through results. Evaluate search_value as datetime if possible; as title-string otherwise.
+        filtered_showtimes = []
+        try:
+            search_value = dt.datetime.strptime(search_value, "%Y-%m-%d")
+            fail_string = f"No showings found for date: {search_value.strftime('%Y-%m-%d')}"
+            for item in showtimes:
+                if item.datetime.date() == search_value.date():
+                    filtered_showtimes.append(item)
+        except ValueError:
+            fail_string = f"No showings found for movie: {search_value}"
+            for item in showtimes:
+                if item.movie.title.lower() == search_value.lower():
+                    filtered_showtimes.append(item)
+    if not filtered_showtimes:
+        return [fail_string]
+    return filtered_showtimes
 
 # Helper functions--------
 def _prompt_for_movie_data() -> dict:

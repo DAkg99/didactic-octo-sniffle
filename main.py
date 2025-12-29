@@ -186,57 +186,47 @@ class MenuSelector:
 
 
 # Initialise menu selection objects
+start_screen = MenuSelector(
+    f"Welcome to {theater_name} Booking System", [              # Startup
+        {"quit": "Quit Applet"},                                # EXIT
+        {"main": "Customer Menu"},                              # 1.Submenu
+        {"admin": "Administrative Menu"}])                      # 2.Submenu
+
 main_selector = MenuSelector(
-    "What would you like to do?", [                         # 1.Main
-        {"admin": "[Staff Access]"},                        # 1.Submenu
-        {"schedule": "View scheduled showtimes"},           # 2.Submenu
-        {"book": "Manage booking"},                         # 3.Submenu
-        {"imdb": "Read more about available movies"}])      # 4.Submenu
-
-schedule_selector = MenuSelector(
-    "How would you like to view the schedule?", [           # 1.2 Schedule Showings
-        {"back": "[Go back]"},                              # BACK
-        {"title": "Showings of a specific movie"},          # Action
-        {"date": "Showings at a specific date"},            # Action
-        {"all": "All showings"}])                           # Action
-
-book_selector = MenuSelector(
-    "Booking options:", [                                   # 1.3 Booking
-        {"back": "[Go back]"},                              # BACK
-        {"new_book": "Make a new booking"},                 # Action
-        {"cont_book": "Resume booking process"},            # Action
-        {"view_book": "View current bookings"},             # Action
-        {"remove_book": "Cancel a booking"}])               # Action
+    "What would you like to do?", [                             # 1.Main
+        {"back": "[Exit]"},                                     # BACK
+        {"imdb": "Read about available movies"},                # Action
+        {"schedule": "View scheduled showings"},                # Action
+        {"new_book": "Make a new booking"},                     # Action
+        {"view_book": "View your existing bookings"},           # Action
+        {"canc_book": "Request a refund for existing booking"}, # Action
+        {"cont_book": "Resume ongoing booking process"}         # Action
+        ])
 
 admin_selector = MenuSelector(
-    "What would you like to manage?", [                     # 1.1 Admin
-        {"back": "[Exit Admin Mode]"},                      # BACK
-        {"movies": "Manage movies & showtimes"},            # 1.Submenu
-        {"reports": "Manage analytics"},                    # 2.Submenu
-        {"backups": "Manage database backups"}])            # 3.Submenu
-
-admin_movies_selector = MenuSelector(
-    "Movie options:", [                                     # 1.1.1 Admin Movies
-        {"back": "[Go back]"},                              # BACK
-        {"new_movie": "Add a new movie"},                   # Action
-        {"rem_movie": "Retire a movie"},                    # Action
-        {"new_showing": "Add new showing to schedule"},     # Action
-        {"edit_showing": "Edit existing showing"},          # Action
-        {"rem_showing": "Remove a showing from schedule"}]) # Action
+    "What would you like to manage?", [                         # 2.Admin
+        {"back": "[Exit]"},                                     # BACK
+        {"add_movie": "Add a new movie"},                       # Action
+        {"rem_movie": "Retire an existing movie"},              # Action
+        {"add_showtime": "Schedule a new showing"},             # Action
+        {"rem_showtime": "Retire an existing showtime"},        # Action
+        {"edit_showtime": "Edit an existing showing"},          # Action
+        {"reports": "View analytics"},                          # 2.1 Submenu
+        {"backups": "Manage database backups"}])                # 2.2 Submenu
 
 admin_reports_selector = MenuSelector(
-    "Analytic options:", [                                  # 1.1.2 Admin Reports
-        {"back": "[Go back]"},                              # BACK
-        {"export": "Export all analytics to file"},         # Action
-        {"occupancy": "View occupancy statistics"},         # Action
-        {"revenue": "View revenue summary"},                # Action
-        {"top_movies": "View the most popular 5 movies"}])  # Action
+    "Analytic options:", [                                      # 2.1 Admin Reports
+        {"back": "[Go back]"},                                  # BACK
+        {"export": "Export all analytics to file"},             # Action
+        {"occupancy": "View occupancy statistics"},             # Action
+        {"revenue": "View revenue summary"},                    # Action
+        {"top_movies": "View the most popular 5 movies"}])      # Action
 
 admin_backups_selector = MenuSelector(
-    "Backup options:", [                                    # 1.1.3 Admin Backups
-        {"back": "[Go back]"},                              # BACK
-        {"save_backup": "Create a manual backup of data"},  # Action
-        {"load_backup": "Load a saved backup file."}])      # Action
+    "Backup options:", [                                        # 2.2 Admin Backups
+        {"back": "[Go back]"},                                  # BACK
+        {"save_backup": "Create a manual backup of data"},      # Action
+        {"load_backup": "Load a saved backup file."}])          # Action
 
 
 ### Menus
@@ -245,62 +235,32 @@ def main_menu():
     clear_terminal()
     while True:
         match main_selector.run():
-            case "admin":
-                if getpass.getpass("Enter Password: ") == admin_passcode:
-                    admin_menu()
-                else:
-                    print("Wrong password.")
-                    pause_confirm()
-                    continue
-
-            case "schedule":
-                schedule_menu()
-            case "book":
-                book_menu()
+            case "exit":
+                return
             case "imdb":
-                movie_details_action()
+                if movie := dynamic_select_movie("Select a movie to learn more about it:"):
+                    movie_pretty_print(movie)
+                    pause_confirm()
+            case "schedule":
+                movies.list_showtimes(input("Enter date or title to search, or leave blank to view all: ").strip())
                 pause_confirm()
-            case _:
-                raise NotImplementedError
-
-def schedule_menu():
-    """Make user search through the schedule"""
-    clear_terminal()
-    while True:
-        match schedule_selector.run():
-            case "back":
-                return
-            case "title":
-                if search_for := input(f"Enter movie title: "):
-                    print_list(movies.list_showtimes(search_for))
-            case "date":
-                if search_for := storage.user_input_verified_date("date"):
-                    print_list(movies.list_showtimes(search_for))
-            case "all":
-                print_list(movies.list_showtimes())
-            case _:
-                raise NotImplementedError
-        pause_confirm()
-
-def book_menu():
-    """Get user to view and manage bookings"""
-    clear_terminal()
-    while True:
-        match book_selector.run():
-            case "back":
-                return
             case "new_book":
                 new_booking_action()
+            case "view_book":
+                search_email = input("Enter your email ('q' to go back): ").lower().strip()
+                if search_email == "q":
+                    return
+                print_list(bookings.list_customer_bookings(search_email), True)
+            case "canc_book":
+                booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").lower().strip()
+                if booking_id == "q":
+                    return
+                bookings.cancel_booking(booking_id, booking_refund_policy)
             case "cont_book":
                 new_booking_action(cont_booking_action())
-            case "view_book":
-                view_booking_action()
-            case "remove_book":
-                remove_booking_action()
             case _:
                 raise NotImplementedError
-        storage.save_state(data_path)
-        pause_confirm()
+
 
 def admin_menu():
     """Admin main menu"""
@@ -308,35 +268,22 @@ def admin_menu():
         match admin_selector.run():
             case "back":
                 return
-            case "movies":
-                admin_movies_menu()
+            case "new_movie":
+                admin_new_movie_action()
+            case "rem_movie":
+                admin_remove_movie_action()
+            case "new_showtime":
+                admin_new_showing_action()
+            case "rem_showtime":
+                admin_remove_showing_action()
+            case "edit_showtime":
+                admin_edit_showing_action()
             case "reports":
                 admin_reports_menu()
             case "backups":
                 admin_backups_menu()
             case _:
                 raise NotImplementedError
-
-def admin_movies_menu():
-    """Admin menu to manage movies and showings"""
-    while True:
-        match admin_movies_selector.run():
-            case "back":
-                return
-            case "new_movie":
-                admin_new_movie_action()
-            case "rem_movie":
-                admin_remove_movie_action()
-            case "new_showing":
-                admin_new_showing_action()
-            case "edit_showing":
-                admin_edit_showing_action()
-            case "rem_showing":
-                admin_remove_showing_action()
-            case _:
-                raise NotImplementedError
-        pause_confirm()
-        storage.save_state(data_path)
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
@@ -373,12 +320,6 @@ def admin_backups_menu():
 
 
 # Actions--------
-## Main Menu Actions----
-def movie_details_action():
-    movie = dynamic_select_movie("Select a movie to learn more about it:")
-    if not movie:
-        return
-    movie_pretty_print(movie)
 
 ### Booking Actions-----
 def new_booking_action(reservation: bookings.Booking = None):
@@ -431,18 +372,6 @@ def cont_booking_action():
         refreshed_reservation = seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
         print(f"Continuing booking for {showing.pretty_string(short=True)}")
         return refreshed_reservation
-
-def view_booking_action():
-    search_email = input("Enter your email ('q' to go back): ").lower().strip()
-    if search_email == "q":
-        return
-    print_list(bookings.list_customer_bookings(search_email), True)
-
-def remove_booking_action():
-    booking_id = input("Enter the booking ID you'd like to cancel ('q' to go back): ").strip().lower()
-    if booking_id == "q":
-        return
-    bookings.cancel_booking(booking_id, booking_refund_policy)
 
 ## Admin Movie Actions-----
 def admin_new_movie_action():
@@ -627,5 +556,15 @@ def movie_pretty_print(movie: movies.Movie):
 
 # START
 clear_terminal()
-print(center_string_x(f"Welcome to {theater_name}!"),"\n")
-main_menu()
+while True:
+    match start_screen.run():
+        case "exit":
+            quit()
+        case "main":
+            main_menu()
+        case "admin":
+            admin_menu()
+        case _:
+            raise NotImplementedError
+# print(center_string_x(f"Welcome to {theater_name}!"),"\n")
+# main_menu()
