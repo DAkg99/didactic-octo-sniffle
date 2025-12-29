@@ -31,18 +31,20 @@ def get_seat_map(showing):
         new_map[purchased_seat[1]][purchased_seat[0]] = 1  # Mark purchased seats
     return new_map
 
-def is_seat_available(seats: list, showing, user_reservation = None) -> bool:
+def is_seat_available(seats: list[str | tuple], showing, user_reservation = None) -> bool:
     """Check if seat input is valid and available"""
     for seat in seats:
-        if not (len(seat) == 4 and seat[0:2].isalpha() and seat[2:4].isnumeric()):
-            print("Error: Invalid seat format.\n(Valid formatting examples: AB03 AB04 AB05)")
-            return False
-        seat_raw = format2raw(seat)
-        if not ((0 <= seat_raw[1] < showing.seat_cols) and (0 <= seat_raw[0] < showing.seat_rows)):
+        if not type(seat) == tuple:
+            # Check format & convert if seat isn't given as a tuple.
+            if not (len(seat) == 4 and seat[0:2].isalpha() and seat[2:4].isnumeric()):
+                print("Error: Invalid seat format.\n(Valid formatting examples: AB03 AB04 AB05)")
+                return False
+            seat = format2raw(seat)
+        if not ((0 <= seat[1] < showing.seat_cols) and (0 <= seat[0] < showing.seat_rows)):
             print("Error: Seats do not exist.")
             return False
-        if seat_raw in [seat for seats_list in showing.occupied_seats.values() for seat in seats_list]:
-            if user_reservation and (seat_raw in user_reservation.seats):
+        if seat in [seat for seats_list in showing.occupied_seats.values() for seat in seats_list]:
+            if user_reservation and (seat in user_reservation.seats):
                 pass  # Skip if seat is 'occupied' by user's own reservation.
             else:
                 print("Error: One or more of the seats you've selected are no longer available.")
@@ -52,7 +54,7 @@ def is_seat_available(seats: list, showing, user_reservation = None) -> bool:
 def render_map(seating_map):
     """Prints seat map with labels. Splits into parts if window is narrow. Doesn't print if too narrow."""
     # terminal_width = next(iter(os.get_terminal_size()))
-    terminal_width = 12  # DEBUG
+    terminal_width = 120  # DEBUG
     char_per_col = 3
     colum_count, row_count = len(seating_map), len(seating_map[1])
     seat_characters = "XR-" # Characters for Sold, Reserved, Empty seats represtively
@@ -71,7 +73,7 @@ def render_map(seating_map):
         col_max += col_step_size
     print(f"Occupied: {seat_characters[0]}, Reserved: {seat_characters[1]}, Available: {seat_characters[2]}\n")
 
-def reserve_seats(seats: list[tuple], showing, booking_cls, reserve_id = '') -> tuple[str, 'Booking']:
+def reserve_seats(seats: list[tuple], showing, booking_cls, reserve_id = '') -> 'Booking':
     """Make a dummy booking for reserved seats. Supply reserve_id if you want to 'refresh' a reservation."""
     reserve = booking_cls(
             showtime = showing,
@@ -84,8 +86,7 @@ def reserve_seats(seats: list[tuple], showing, booking_cls, reserve_id = '') -> 
             confirmed = False,
             uid = reserve_id
         )
-    reserve_id = reserve.uid
-    return reserve_id, reserve
+    return reserve
 
 
 def format2raw(seat: str) -> tuple:

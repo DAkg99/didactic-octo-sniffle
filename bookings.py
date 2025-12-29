@@ -142,18 +142,14 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
         price *= (100 - discount_data["student"][1]) / 100
     return price
 
-def payment(cost: float, showtime, seats_formatted: list[str], reserve_id) -> bool:
+def payment_success(cost: float, showing: 'Showtime', seats_formatted: list[str]) -> bool:
     """Make payment and release reserved seats."""
-    print(f"Movie {showtime.movie.title} at {showtime.datetime.strftime('%Y %b %d %H:%M')}:\n"
+    print(f"Movie {showing.movie.title} at {showing.datetime.strftime('%Y %b %d %H:%M')}:\n"
           f"Seats: {', '.join(seats_formatted)}")
     print(f"Your total is {cost}₺")
     if input("Enter payment details ('q' to cancel): ").lower().strip() == "q":
-        print("Payment cancelled.")
-        success = False
-    else:
-        print("Payment successful.")
-        success = True
-    return success
+        return False
+    return True
 
 def list_customer_bookings(email: str) -> list:
     booking_list = []

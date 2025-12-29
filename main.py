@@ -1,8 +1,7 @@
 import os
+import getpass
 from dataclasses import dataclass
 from typing import ClassVar
-
-
 
 import bookings
 import movies
@@ -55,7 +54,6 @@ from seating import is_seat_available
 # Admin: Movies & Showtimes: Prevent overlapping screenings (storage.validate_showtime()).
 
 # To-do:
-# Admin: Passcode Protection
 # Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
 
 
@@ -95,6 +93,8 @@ booking_refund_policy = {
     "purchase_time_limit_hours": 72,  # Hours after purchase when ticket becomes non-refundable.
     "film_proximity_limit_hours": 2   # Hours until movie when ticket becomes non-refundable.
 }
+
+admin_passcode = "123"
 
 # Database path
 data_path = "./data/"
@@ -249,7 +249,13 @@ def main_menu():
     while True:
         match main_selector.run():
             case "admin":
-                admin_menu()
+                if getpass.getpass("Enter Password: ") == admin_passcode:
+                    admin_menu()
+                else:
+                    print("Wrong password.")
+                    pause_confirm()
+                    continue
+
             case "schedule":
                 schedule_menu()
             case "book":
@@ -379,58 +385,56 @@ def movie_details_action():
 
 ### Booking Actions-----
 def new_booking_action(reservation: bookings.Booking = None):
-    if reservation:
-        showing, tuple_seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
-    else:
+    if reservation:  # Skip seat/showing selection
+        showing, seats, reserve_id = reservation.showtime, reservation.seats, reservation.uid
+    else:  # Proceed with seat/showing selection
         showing = dynamic_select_showtime("Select a scheduled showing:")
         if not showing:
-            return  # Showing selection cancelled
-        tuple_seats = seating.select_seats(showing)
-        if not tuple_seats:
-            return  # Seating selection cancelled
-        # Reserve seats.
-        reserve_id, reservation = seating.reserve_seats(tuple_seats, showing, bookings.Booking)
-        print(f"Seats reserved for {bookings.Booking.max_reserve_mins} minutes.\n"
-              f"Use code below to resume booking if you leave:\n"
-              f"CODE: {reserve_id}")
-        pause_confirm()
-    seat_string_list = [seating.raw2format(seat) for seat in tuple_seats]  # Get formatted seats (for use later)
-    booking_data = bookings.new_booking(showing, tuple_seats, pricing_data)  # Generate booking data
-    if bookings.payment(booking_data["cost"], showing, seat_string_list, reserve_id):
-        if is_seat_available(seat_string_list, showing, reservation):  # Make sure user's seats weren't snagged.
-            reservation.remove_self()  # Delete reservation if payment succeeds
-            del reservation
-            bookings.generate_ticket(booking_data)  # Make a confirmed booking
+            return  # Showing selection cancelled by user.
+        seats = seating.select_seats(showing)
+        if not seats:
+            return  # Seating selection cancelled by user.
+        reservation = seating.reserve_seats(seats, showing, bookings.Booking)
+        print(f"Seats reserved for {bookings.Booking.max_reserve_mins} minutes.")
+    booking_data = bookings.new_booking(showing, seats, pricing_data)  # Make booking data (asks for user details).
+    if bookings.payment_success(booking_data["cost"], showing, [seating.raw2format(seat) for seat in seats]):
+        if not is_seat_available(seats, showing, reservation):
+            print("Your payment has been cancelled.")  # Seats are no longer available
         else:
-            print("Your payment has been refunded.")
+            print("Payment successful.")
+            reservation.remove_self()
+            del reservation
+            bookings.generate_ticket(booking_data)  # Success.
     else:
+        print("Payment aborted by user.")
         if (reservation.max_reserve_mins - reservation.minutes_since_issued) > 0:
-            print(f"You can use your code to continue your booking process within "
-                  f"{reservation.minutes_since_issued - reservation.max_reserve_mins} minutes.")
+            print(f"Code to resume booking: {reservation.uid}\n"
+                  f"Your seats are reserved for: {reservation.max_reserve_mins - reservation.minutes_since_issued:.01f} minutes")
         return
 
 def cont_booking_action():
+    """Asks for reservation code; returns reservation (and refreshes its duration) if valid."""
     reserve_id = input("Enter code: ").lower().strip()
     if (not reserve_id) or (reserve_id == "q"):
-        return None
-    # Try to load reservation data
+        return None  # User abort
     reservation = bookings.Booking.current_items.get(reserve_id, None)
     if (not reservation) or reservation.confirmed:
-        print("Invalid code!")
+        print("Invalid code!")  # No such reservation
         return None
     elif reservation.minutes_since_issued >= reservation.max_reserve_mins:
+        print("Code has expired!")  # Expired reservation; delete it
         reservation.remove_self()
         del reservation
-        print("Code has expired!")
         return None
     else:
-        # Refresh reservation and continue booking
+        # Reservation is valid: delete it...
         seats, showing = reservation.seats, reservation.showtime
         reservation.remove_self()
         del reservation
-        seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
+        # ... and make a new one in order to refresh its remaining duration.
+        refreshed_reservation = seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
         print(f"Continuing booking for {showing.pretty_string(short=True)}")
-        return bookings.Booking.current_items[reserve_id]
+        return refreshed_reservation
 
 def view_booking_action():
     search_email = input("Enter your email ('q' to go back): ").lower().strip()
