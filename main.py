@@ -237,7 +237,7 @@ def main_menu():
                 if movie := dynamic_select_movie("Select a movie to learn more about it: "):
                     print(movie.pretty_string())
             case "schedule":
-                if (search_term := input("Enter date/title to search, or blank to view all: ").lower().strip()) != "q":
+                if (search_term := input("Enter date (YYYY-MM-DD) or title to search, or blank to view all: ").lower().strip()) != "q":
                     print_list(movies.list_showtimes(search_term, only_future=True))
             case "new_book":
                 booking_process_handler()
@@ -359,7 +359,7 @@ def booking_process_handler(reservation: bookings.Booking = None):
     # Do payment.
     if not bookings.payment(booking_data := bookings.new_booking(showing, seats, pricing_data)):
         print(f"Payment cancelled by user.")
-        if reserve_time_left := (reservation.max_reserve_mins - reservation.minutes_since_issued) >= 1:
+        if (reserve_time_left := (reservation.max_reserve_mins - reservation.minutes_since_issued)) >= 0:
             # Tell user that they can continue booking later if their seats are still reserved.
             print(f"Seats reserved for {reserve_time_left:.01f} minutes.\n"
                   f"Use code to continue booking: {reservation.uid}")

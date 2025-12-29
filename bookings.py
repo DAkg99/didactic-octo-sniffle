@@ -12,7 +12,7 @@ from storage import random_uid_generator
 
 @dataclass(frozen=True)
 class Booking:
-    max_reserve_mins: ClassVar[int] = 15
+    max_reserve_mins: ClassVar[float] = 5
     current_items: ClassVar[dict[str, Self]] = {}
     showtime: movies.Showtime
     name: str
