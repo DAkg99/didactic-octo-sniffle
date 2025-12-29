@@ -107,7 +107,7 @@ def cancel_booking(booking_id: str, policy: dict) -> bool:
     # See if customer can get a refund.
     hours_since_purchase = (dt.datetime.now() - booking.issued) / dt.timedelta(hours=1)
     hours_til_showtime = (booking.showtime.datetime - dt.datetime.now()) /  dt.timedelta(hours=1)
-    if input(f"{booking}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
+    if input(f"{booking.pretty_string()}\nIs the above booking the one you wish to cancel? (y/n)").lower().strip() == "n":
         print("Please enter a different booking ID.")
         return False
     if hours_since_purchase > policy["purchase_time_limit_hours"]:
@@ -144,7 +144,7 @@ def calc_total(pricing: dict, booking_data: dict) -> int:
 
 def payment(booking_data: dict) -> bool:
     """Make payment and release reserved seats."""
-    print(f"Your total is {booking_data['cost']}₺")
+    print(f"Your total is {booking_data['cost']:.02f}₺")
     if input("Enter payment details ('q' to cancel): ").lower().strip() == "q":
         return False
     return True

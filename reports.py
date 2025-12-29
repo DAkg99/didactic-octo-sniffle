@@ -30,11 +30,11 @@ def occupancy_report(showtimes_list: list) -> dict:
     return data
 
 
-def revenue_summary(booking_list: list, period: tuple[dt.datetime, dt.datetime] = None, showtime_list = None) -> dict:
-    if not period:  # Set a period if non given.
+def revenue_summary(booking_list: list, showtime_list: list, period: list[dt.datetime] = '') -> dict:
+    if not period:  # Determine date range if not given.
         if not showtime_list:
             showtime_list = []
-        period = (_auto_showtime_date_range(showtime_list))
+        period = _auto_showtime_date_range(showtime_list)
     data = {
         "range": f"{min(period).strftime("%Y-%m-%d")} - {max(period).strftime("%Y-%m-%d")}",
         "total": 0.0,
@@ -71,7 +71,7 @@ def export_report(filename: str, showtimes_list: list, booking_list: list):
         return
     export_data = dict()
     export_data["occupancy"] = occupancy_report(showtimes_list)
-    export_data["revenue"] = revenue_summary(booking_list, None, showtimes_list)
+    export_data["revenue"] = revenue_summary(booking_list, showtimes_list)
     export_data["top_movies"] = [movie.to_dict() for movie in top_movies(showtimes_list)]
     with open(filename+".json", "w") as exp_file:
         json.dump(export_data, exp_file, indent=4)
@@ -93,11 +93,11 @@ def _busiest_days_indexes(days_counter: list) -> list:
         indexes = [7]
     return indexes
 
-def _auto_showtime_date_range(showtime_list) -> tuple:
+def _auto_showtime_date_range(showtime_list) -> list:
     dates = [value.datetime for value in showtime_list]
     try:
         date1 = min(dates)
         date2 = max(dates)
     except ValueError:  # When Showtime is empty, default range to today
         date1 = date2 = dt.datetime.now()
-    return date1, date2
+    return [date1, date2]

@@ -1,14 +1,5 @@
 [
     {
-        "movie_id": "test1",
-        "datetime": "2026-01-02 16:45:00",
-        "screen": 1,
-        "attendees": 0,
-        "language": "turkish",
-        "pricing_tier": 4,
-        "uid": 1
-    },
-    {
         "movie_id": "test2",
         "datetime": "2026-01-02 19:45:00",
         "screen": 2,
@@ -18,21 +9,21 @@
         "uid": 2
     },
     {
-        "movie_id": "test1",
-        "datetime": "2026-01-03 12:35:00",
-        "screen": 3,
+        "movie_id": "5e7692c6",
+        "datetime": "2028-01-01 12:15:00",
+        "screen": 5,
         "attendees": 0,
-        "language": "esperanto",
-        "pricing_tier": 3,
-        "uid": 3
+        "language": "qwerty",
+        "pricing_tier": 2,
+        "uid": 1
     },
     {
-        "movie_id": "test3",
-        "datetime": "2026-01-03 16:45:00",
-        "screen": 1,
-        "attendees": 11,
-        "language": "n/a",
+        "movie_id": "5e7692c6",
+        "datetime": "2010-10-10 10:10:00",
+        "screen": 123,
+        "attendees": 0,
+        "language": "werwer",
         "pricing_tier": 1,
-        "uid": 4
+        "uid": 3
     }
 ]

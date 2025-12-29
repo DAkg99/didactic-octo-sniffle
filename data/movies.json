@@ -1,15 +1,5 @@
 [
     {
-        "title": "Hello Kitty",
-        "genre": [
-            "horror"
-        ],
-        "duration": 105,
-        "description": "Dumb cat does things.",
-        "rating": 4.5,
-        "uid": "test1"
-    },
-    {
         "title": "Hello Kitty 2",
         "genre": [
             "horror",
@@ -21,13 +11,14 @@
         "uid": "test2"
     },
     {
-        "title": "Death",
+        "title": "Testo",
         "genre": [
-            "action"
+            "comedy",
+            "feline"
         ],
-        "duration": 1,
-        "description": "Movie that kills you upon viewing.",
-        "rating": 5.0,
-        "uid": "test3"
+        "duration": 1555,
+        "description": "GWAFEAD",
+        "rating": 3.2222,
+        "uid": "5e7692c6"
     }
 ]

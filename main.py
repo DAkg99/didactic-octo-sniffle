@@ -1,5 +1,6 @@
 import os
 import getpass
+import datetime as dt
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -10,35 +11,31 @@ import seating
 import reports
 from seating import is_seat_available
 
-# Main Menu/
-# ├── Admin Menu/
-# │   └── ...
-# ├── Schedule Viewing Menu/
-# │   ├── Search by title
-# │   ├── Search by date
-# │   └── Show all
-# ├── Booking Menu/
+
+# Start Menu/
+# │
+# ├── 1.Main Menu/
+# │   ├── Movie Info
+# │   ├── Schedule Info
 # │   ├── New Booking
 # │   ├── View Bookings
-# │   └── Delete Booking
-# └── View Movie Details
-#
-# Main Menu/
-# └── Admin Menu/
-#     ├── Movies & Showtimes Menu/
-#     │   ├── New Movie
-#     │   ├── Remove Movie
-#     │   ├── New Showtime
-#     │   ├── Edit Showtime
-#     │   └── Remove Showtime
-#     ├── Reports Menu/
-#     │   ├── Export to file
-#     │   ├── View occupancy
-#     │   ├── View revenue
-#     │   └── View most popular
-#     └── Backups Menu/
-#         └── Create Backup
-
+# │   ├── Cancel Booking
+# │   └── Continue Booking
+# │
+# └── 2.Admin Menu/
+#     ├── Add Movie
+#     ├── Remove Movie
+#     ├── Add Showtime
+#     ├── Remove Showtime
+#     ├── Edit Showtime
+#     ├── 2.1.Reports/
+#     │   ├── Export Reports
+#     │   ├── Occupancy Report
+#     │   ├── Revenue Report
+#     │   └── Top Movies Report
+#     └── 2.2.Backups/
+#         ├── Save Backup
+#         └── Load Backup
 
 # Done:
 # Main: Schedule Viewing
@@ -48,25 +45,6 @@ from seating import is_seat_available
 # Admin: Reporting & Analytics
 # Admin: Storage & Backups
 
-# Working on:
-# General clean up
-
-# To-do:
-# Remove hardcoded workarounds for os.get_terminal_size(). Marked with debug comments
-
-
-# Extra To-dos:
-# Admin: Reporting & Analytics: Export: Disallow illegal file characters maybe.
-# General: Put load_state() before any action that is about to save state, so they change the most recent date.
-# Main: Booking menu: New: Add a ----screen---- line to seat map.
-# Main: Schedule Viewer: Send user to create new booking.
-# Main: Schedule Viewer: Non-exact search for movie title.
-# Different room sizes for different screens
-# Check for duplicates in movie/booking database, automatically remove them
-# Instead of storing all bookings in memory, only store their ids for look-ups.
-# Colored terminal
-# Clear terminal between prompts
-# Admin: Reporting/Analytics: Export: CSV
 
 # Theater name
 theater_name = "Testificate"
@@ -106,7 +84,7 @@ for file_name in ["movies.json", "showtimes.json", "bookings.json"]:
     if not os.path.exists(data_path + file_name):
         with open(data_path + file_name, 'x') as new_file:
             new_file.write("[]")
-# Load everything in
+# Load date into memory
 storage.load_state(data_path)
 
 
@@ -121,21 +99,24 @@ class MenuSelector:
     max_opts_per_page: int = 10
 
     @classmethod
-    def dynamic_selector(cls, prompt: str, raw_options: list, run: bool = True):
-        """Construct instance with options. Non-dict options are keyed as string-integers."""
-        options = [{"back": "[Go back]"}]  # First option
+    def dynamic_selector(cls, prompt: str, raw_options: list[str | dict], run_immediately: bool = True):
+        """Construct new instance. Non-dict options are keyed as string-integers."""
+        options = [{"back": "[Go back]"}]  # Default first option
         for index, option in enumerate(raw_options, 1):
             if type(option) == dict:
-                options.append(option)  # Use dict key as the option value if it's a dict, use enumerated key otherwise.
+                # Append to options list.
+                options.append(option)
             else:
+                # Append to options list with enumerator as makeshift key.
                 options.append({str(index): option})
-        if run:
+        if run_immediately:
             return cls(prompt, options).run()
         return cls(prompt, options)
 
     def run(self, page: int = 0, prompt_override: str = "") -> str:
         """Displays menu until user makes a valid choice."""
         while True:
+            clear_terminal()
             options = self._get_page_options(page)
             self._print_menu(options, prompt_override)
             choice = self._make_user_choose(options)
@@ -152,7 +133,7 @@ class MenuSelector:
         return choice
 
     def _print_menu(self, options, prompt_override: str = None):
-        """Prints instance's prompt & options. Prompt can be overridden."""
+        """Prints instance's prompt & options."""
         print((self.prompt * bool(not prompt_override)) +
               (str(prompt_override) * bool(prompt_override)))  # Branchless conditional for prompt overriding
         for i, option in enumerate(options):
@@ -171,23 +152,28 @@ class MenuSelector:
             return None
 
     def _get_page_options(self, page: int):
+        """Get list of options to be displayed depending on page number."""
         if len(self.options) <= MenuSelector.max_opts_per_page:
-            page_options = self.options
-        elif page == 0:
-            page_options = list(self.options[((self.max_opts_per_page - 2) * page):((self.max_opts_per_page - 2) * (page + 1))+1])
+            # No need for page logic.
+            return self.options
+        if page == 0:
+            # Special case for page 0: don't do a "previous page" option.
+            page_options = list(self.options[((self.max_opts_per_page - 2) * page):
+                                             ((self.max_opts_per_page - 2) * (page + 1)) + 1])
             page_options.append(MenuSelector.option_page_controls[1])
         else:
-            page_options = list(self.options[((self.max_opts_per_page - 2) * page) + 1:((self.max_opts_per_page - 2) * (page + 1))+ 1])
+            page_options = list(self.options[((self.max_opts_per_page - 2) * page) + 1:
+                                             ((self.max_opts_per_page - 2) * (page + 1)) + 1])
             page_options.insert(0,MenuSelector.option_page_controls[0])
-            while len(page_options) < 9:
-                page_options.append({"":"null"})
-            page_options.append(MenuSelector.option_page_controls[1])
+            if len(page_options) > 8 and self.options[((self.max_opts_per_page - 2) * (page + 1)) + 1:]:
+                # Only print "next page" button if the menu is filled up & there are options to be printed
+                page_options.append(MenuSelector.option_page_controls[1])
         return page_options
 
 
-# Initialise menu selection objects
+# Initialise menu selection instances
 start_screen = MenuSelector(
-    f"Welcome to {theater_name} Booking System", [              # Startup
+    f"Booking System for {theater_name} Theater", [             # Startup
         {"quit": "Quit Applet"},                                # EXIT
         {"main": "Customer Menu"},                              # 1.Submenu
         {"admin": "Administrative Menu"}])                      # 2.Submenu
@@ -200,8 +186,8 @@ main_selector = MenuSelector(
         {"new_book": "Make a new booking"},                     # Action
         {"view_book": "View your existing bookings"},           # Action
         {"canc_book": "Request a refund for existing booking"}, # Action
-        {"cont_book": "Resume ongoing booking process"}         # Action
-        ])
+        {"cont_book": "Continue booking process"}])             # Action
+
 
 admin_selector = MenuSelector(
     "What would you like to manage?", [                         # 2.Admin
@@ -230,80 +216,132 @@ admin_backups_selector = MenuSelector(
 
 
 ### Menus
+def start_menu():
+    """Menu to be shown upon launching the script."""
+    while True:
+        match start_screen.run():
+            case "quit":
+                quit()
+            case "main":
+                main_menu()
+            case "admin":
+                if getpass.getpass("Enter Passcode: ") != admin_passcode:
+                    print("Invalid passcode.")
+                else:
+                    admin_menu()
+            case _:
+                raise NotImplementedError
+        pause_confirm()
 
 def main_menu():
-    clear_terminal()
+    """Main menu for customers."""
     while True:
-        match main_selector.run():
-            case "exit":
+        choice = main_selector.run()
+        storage.load_state(data_path)
+        match choice:
+            case "back":
                 return
             case "imdb":
                 if movie := dynamic_select_movie("Select a movie to learn more about it: "):
-                    movie_pretty_print(movie)
+                    print(movie.pretty_string())
             case "schedule":
                 if (search_term := input("Enter date/title to search, or blank to view all: ").lower().strip()) != "q":
-                    movies.list_showtimes(search_term)
+                    print_list(movies.list_showtimes(search_term, only_future=True))
             case "new_book":
                 booking_process_handler()
+                storage.save_state(data_path)
             case "view_book":
                 if (search_email := input("Enter your email ('q' to go back): ").lower().strip()) != "q":
                     print_list(bookings.list_customer_bookings(search_email), True)
             case "canc_book":
                 if (booking_id := input("Enter the booking ID you'd like to cancel: ").lower().strip()) != "q":
                     bookings.cancel_booking(booking_id, booking_refund_policy)
+                    storage.save_state(data_path)
             case "cont_book":
                 if (reserve_id := input("Enter code ('q' to go back): ").lower().strip()) != "q":
                     cont_booking_action(reserve_id)
+                    storage.save_state(data_path)
             case _:
                 raise NotImplementedError
         pause_confirm()
 
 
 def admin_menu():
-    """Admin main menu"""
+    """Main menu for admins."""
     while True:
-        match admin_selector.run():
+        choice = admin_selector.run()
+        storage.load_state(data_path)
+        match choice:
             case "back":
                 return
-            case "new_movie":
-                admin_new_movie_action()
+            case "add_movie":
+                movies.add_movie()
+                storage.save_state(data_path)
             case "rem_movie":
-                admin_remove_movie_action()
-            case "new_showtime":
-                admin_new_showing_action()
+                if movie := dynamic_select_movie("Select a movie to retire:"):
+                    movies.remove_movie(movie)
+                    storage.save_state(data_path)
+            case "add_showtime":
+                if movie := dynamic_select_movie("Select a movie to schedule a new showing for: "):
+                    movies.schedule_showtime(movie)
+                    storage.save_state(data_path)
             case "rem_showtime":
-                admin_remove_showing_action()
+                if showing := dynamic_select_showtime("Select a showing to retire: "):
+                    movies.remove_showtime(showing)
+                    storage.save_state(data_path)
             case "edit_showtime":
-                admin_edit_showing_action()
+                if showing := dynamic_select_showtime("Select a showing to edit:"):
+                    movies.update_showtime(showing)
+                    storage.save_state(data_path)
             case "reports":
                 admin_reports_menu()
             case "backups":
                 admin_backups_menu()
             case _:
                 raise NotImplementedError
+        pause_confirm()
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
     while True:
-        match admin_reports_selector.run():
+        choice = admin_reports_selector.run()
+        storage.load_state(data_path)
+        match choice:
             case "back":
                 return
             case "export":
-                admin_reports_export_action()
+                if filename := input("Enter name for export file: ").strip():
+                    movies_list = list(movies.Showtime.current_items.values())
+                    bookings_list = list(bookings.Booking.current_items.values())
+                    reports.export_report(filename, movies_list, bookings_list)
             case "occupancy":
-                admin_reports_occupancy_action()
+                showtime_list = list(movies.Showtime.current_items.values())
+                print_dict(reports.occupancy_report(showtime_list))
             case "revenue":
-                admin_report_revenue_action()
+                bookings_list = list(bookings.Booking.current_items.values())
+                showtime_list = list(movies.Showtime.current_items.values())
+                if dates := input("Enter date range (space-separated) (blank for automatic range): ").lower().strip():
+                    if len(dates := [date.strip() for date in dates.split("-")]) != 2:
+                        print("Error: Must enter two space-separated dates (YYYY-MM-DD YYYY-MM-DD).")
+                        continue
+                    try:
+                        dates = [dt.datetime.strptime(date, "%Y-%m-%d") for date in dates]
+                    except ValueError:
+                        print("Error: Dates must be formatted as YYYY-MM-DD")
+                        continue
+                print_dict(reports.revenue_summary(bookings_list, showtime_list, dates))
             case "top_movies":
-                admin_report_top_action()
+                print_list(reports.top_movies(list(movies.Showtime.current_items.values())))
             case _:
                 raise NotImplementedError
         pause_confirm()
 
 def admin_backups_menu():
-    """Admin menu to export backups"""
+    """Admin menu to load/save backups"""
     while True:
-        match admin_backups_selector.run():
+        choice = admin_backups_selector.run()
+        storage.load_state(data_path)
+        match choice:
             case "back":
                 return
             case "save_backup":
@@ -312,25 +350,28 @@ def admin_backups_menu():
                 storage.load_backup(backup_path, data_path)
             case _:
                 raise NotImplementedError
-        storage.save_state(data_path)
         pause_confirm()
 
 
-# Actions--------
 
-### Booking Actions-----
+# Menu Helper Functions--------------------------------------------
+
 def booking_process_handler(reservation: bookings.Booking = None):
-    if not (showing := dynamic_select_showtime() if not reservation else reservation.showtime):
+    """Create a booking."""
+    # Get seating and showing from 'reservation'; prompt the user if no reservation.
+    if not (showing := dynamic_select_showtime(only_future=True) if not reservation else reservation.showtime):
         return  # Showtime selection aborted by user
     if not (seats := seating.select_seats(showing) if not reservation else reservation.seats):
         return  # Seat selection aborted by user
     reservation = seating.reserve_seats(seats, showing, bookings.Booking) if not reservation else reservation
+    # Do payment.
     if not bookings.payment(booking_data := bookings.new_booking(showing, seats, pricing_data)):
-        print(f"Payment cancelled.")
+        print(f"Payment cancelled by user.")
         if reserve_time_left := (reservation.max_reserve_mins - reservation.minutes_since_issued) >= 1:
+            # Tell user that they can continue booking later if their seats are still reserved.
             print(f"Seats reserved for {reserve_time_left:.01f} minutes.\n"
                   f"Use code to continue booking: {reservation.uid}")
-        return  # Payment cancelled by user
+        return
     elif not is_seat_available(seats, showing, reservation):
         print("Your payment has been cancelled.")
         return  # User's seats are no longer available
@@ -363,66 +404,11 @@ def cont_booking_action(reserve_id: str):
         booking_process_handler(refreshed_reservation)
 
 
-## Admin Movie Actions-----
-def admin_new_movie_action():
-    movies.add_movie()
 
-def admin_remove_movie_action():
-    movie = dynamic_select_movie("Select a movie to retire:")
-    if not movie:
-        return
-    movies.remove_movie(movie)
+# General Purpose Functions---------------------
 
-def admin_new_showing_action():
-    selected_movie = dynamic_select_movie("Select a movie to schedule a new showing for: ")
-    movies.schedule_showtime(selected_movie)
-
-def admin_edit_showing_action():
-    showing = dynamic_select_showtime("Select a showing to edit:")
-    if not showing:
-        return
-    movies.update_showtime(showing)
-
-def admin_remove_showing_action():
-    admin_choice = MenuSelector.dynamic_selector(
-        "Select a showing to retire:",
-        cached_showings := [showing for showing in movies.Showtime.current_items.values()])
-    if admin_choice == "back":
-        return
-    retired_showing = cached_showings[int(admin_choice) - 1]
-    movies.remove_showtime(retired_showing)
-
-### Admin Reports Actions
-def admin_reports_export_action():
-    reports.export_report(input("filename:"), list(movies.Showtime.current_items.values()),
-                          list(bookings.Booking.current_items.values()))
-
-def admin_reports_occupancy_action():
-    occupancy_data = reports.occupancy_report(list(movies.Showtime.current_items.values()))
-    print_dict(occupancy_data)
-
-def admin_report_revenue_action():
-    mode = input("Enter date range manually, or automatically set widest possible range? (m/a): ").lower().strip()
-    if mode == "m":
-        print("Please provide the range of dates you would like to query.")
-        date1 = storage.user_input_verified_date("date", "Enter first date: ")
-        if not date1:
-            return
-        date2 = storage.user_input_verified_date("date", "Enter second date: ")
-        if not date2:
-            return
-        revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), (date1, date2))
-    else:
-        revenue_data = reports.revenue_summary(list(bookings.Booking.current_items.values()), None,
-                                               list(movies.Showtime.current_items.values()))
-    print_dict(revenue_data)
-
-def admin_report_top_action():
-    print_list(reports.top_movies(list(movies.Showtime.current_items.values())))
-
-
-# General Purpose Functions---------
 def dynamic_select_movie(prompt: str) -> movies.Movie | None:
+    """Summon a menu where the user can pick a movie."""
     temp_movie_dict = movies.Movie.current_items.copy()  # Cache it in case movies are edited during choice
     user_choice = MenuSelector.dynamic_selector(
         prompt,
@@ -432,33 +418,41 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
         return None
     return temp_movie_dict[user_choice]
 
-def dynamic_select_showtime(prompt: str = "") -> movies.Showtime | None:
+def dynamic_select_showtime(prompt: str = "", only_future: bool = False) -> movies.Showtime | None:
+    """Summon a menu where the user can pick a showtime."""
+    
     if not prompt:
         prompt = "Select a scheduled showing: "
     temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache it in case edited during choice
+    if only_future:
+        showtimes = [{key: value.pretty_string()} for key, value in temp_showtime_dict.items() if value.datetime > dt.datetime.now()]
+    else:
+        showtimes = [{key: value.pretty_string()} for key, value in temp_showtime_dict.items()]
     user_choice = MenuSelector.dynamic_selector(
         prompt,
-        [{key: value.pretty_string()} for key, value in temp_showtime_dict.items()]
+        showtimes
     )
     if user_choice == "back":
         return None
     return temp_showtime_dict[int(user_choice)]
 
 def clear_terminal():
+    """Clear the terminal"""
     if os.name == "nt":
         os.system("cls")  # Windows
     else:
-        os.system("clear")  # Unix & Unix-Like
+        os.system("clear")  # Unix/-Like
 
 def pause_confirm():
+    """Hold the screen until user presses enter"""
     input("[Enter to continue] ")
 
 def print_list(my_list: list, double_spaced = False):
+    """Print a given list with optional double-spacing. Custom classes are printed using pretty_string method."""
     if not my_list:
         return
-    # If they're all custom objects, use existing method to get pretty string.
-    # Otherwise, print them normally.
     if all(isinstance(item, (bookings.Booking, movies.Movie, movies.Showtime)) for item in my_list):
+        # If they're all custom objects, use the pretty_string method.
         if double_spaced:
             [print(f"\n{item.pretty_string()}") for item in my_list]
             print()
@@ -472,91 +466,22 @@ def print_list(my_list: list, double_spaced = False):
             [print(item) for item in my_list]
 
 def print_dict(my_dict: dict, double_spaced: bool = False, dynamic_key_char_limit = True, key_char_limit: int = 20):
+    """Print a given dictionary object."""
     if dynamic_key_char_limit:
         key_char_limit = max([len(key) for key in my_dict])
     if double_spaced:
-        [print(f"\n{text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
+        [print(f"\n{_text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
         print()
     else:
-        [print(f"{text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
+        [print(f"{_text_padding_shortening(key.title(), key_char_limit)}\t:\t{value}") for key, value in my_dict.items()]
 
-def text_padding_shortening(my_string: str, char_limit: int) -> str:
+def _text_padding_shortening(my_string: str, char_limit: int) -> str:
     if char_limit <= 2:
         raise ValueError("Limit too low")
     if len(my_string) <= char_limit:
         return my_string + (" " * (char_limit - len(my_string)))
     return my_string[:char_limit - 2] + "…" + my_string[-1]
 
-def center_string_x(my_str: str, min_padding: int = 0, min_lines: int = 0, pad_char: str = " ") -> str:
-    """
-        Centers string horizontally on the terminal by padding its left and right side with characters.
-        Splits string into lines to fit better, or to abide by min_lines argument (atg must be >= number of words).
-        Minimum padding argument isn't respected if terminal too narrow.
-        If terminal is still too narrow, function is nulled and input is returned without processing.
-    """
-    # terminal_width = next(iter(os.get_terminal_size()))
-    terminal_width = 120    # DEBUG
-    min_width_allowed = 5   # Keep this 3 or higher
-    if terminal_width < min_width_allowed:
-        return my_str       # Null function; terminal too narrow
-    if min_lines > len(my_str.split()):
-        raise Exception(f"Input string has too few space-separated words to be split into {min_lines} lines.")
-
-    while terminal_width - min_padding < min_width_allowed:  # Decrease min_padding if necessary
-        min_padding -= 1
-    working_columns = terminal_width - min_padding
-    my_str = my_str.strip()
-    # Recursively go through the string. Divide into words or hyphenated chunk when necessary.
-    if working_columns < len(my_str):
-        if len(my_str.split()) > 1:
-            return "\n".join([center_string_x(word, min_padding, min_lines, pad_char)
-                              for word in my_str.split()])
-        return "\n".join([center_string_x(chunk, min_padding, min_lines, pad_char)
-                          for chunk in string_spread_to_chunks(my_str, working_columns)])
-    # Set left and right padding
-    padding_left = (terminal_width - len(my_str)) // 2 * pad_char
-    if pad_char == " ":
-        padding_right = "" # Don't bother with right padding if pad_char is space anyway.
-    else:
-        # Padding_right subtracts 1 at the end, otherwise Windows CMD does line-breaks.
-        padding_right = ((terminal_width - len(my_str)) // 2  + ((terminal_width - len(my_str)) % 2 - 1)) * pad_char
-    return padding_left + my_str + padding_right
-
-def string_spread_to_chunks(my_str: str, max_chunk_size: int, hyphenate: bool = True) -> list[str]:
-    """Splits string into relatively even chunks, abiding by the max chunk size given"""
-    bin_count = len(my_str) // (max_chunk_size - (1 * hyphenate)) + 1
-    min_chunk_size = (len(my_str)//bin_count)
-    remainder = len(my_str) % bin_count
-    string_chunks = []
-    for i in [_ * min_chunk_size + remainder for _ in range(0, bin_count)]: # Ignores the first remainder-many chars.
-        string_chunks.append(my_str[i:(i + min_chunk_size)] + ("-" * hyphenate))
-    string_chunks[0] = my_str[0:remainder] + string_chunks[0] # Ignored chars are added to the first bin.
-    string_chunks[-1] = string_chunks[-1][0:-1] if hyphenate else string_chunks[-1] # Last hyphen removed.
-    return string_chunks
-
-
-# Movie Details Functions---------
-def movie_pretty_print(movie: movies.Movie):
-    print(f"Title: {movie.title}\n"
-          f"Genre: {', '.join(list(map(str, movie.genre))).capitalize()}\n"
-          f"Duration: {str(movie.duration.seconds//3600)}H{str(movie.duration.seconds//60)}M\n"
-          f"Rating: {movie.rating:.2f}/5.00\n"
-          f"Description: {movie.description}")
-
-
-
 
 # START
-clear_terminal()
-while True:
-    match start_screen.run():
-        case "exit":
-            quit()
-        case "main":
-            main_menu()
-        case "admin":
-            admin_menu()
-        case _:
-            raise NotImplementedError
-# print(center_string_x(f"Welcome to {theater_name}!"),"\n")
-# main_menu()
+start_menu()

@@ -14,7 +14,7 @@ class Movie:
     """Mostly immutable class for movies. Class tracks all current instances in a dict."""
     current_items: ClassVar[dict[str,Self]] = {}                  # CLASS VAR: Automatically self-populates.
     title: str
-    genre: list[str]
+    genre: list[str] = field(compare=False)                       # Unhashable type (list)
     duration: dt.timedelta
     description: str
     rating: float = field(compare=False)                          # Mutable (set by update_rating method)
@@ -28,6 +28,13 @@ class Movie:
             object.__setattr__(self, "uid", new_uid)
         # Add self to class dictionary.
         Movie.current_items[self.uid] = self
+
+    def pretty_string(self):
+        return (f"Title: {self.title}\n"
+          f"Genre: {', '.join(list(map(str, self.genre))).capitalize()}\n"
+          f"Duration: {str(self.duration.seconds//3600)}H{str(self.duration.seconds//60)}M\n"
+          f"Rating: {self.rating:.2f}/5.00\n"
+          f"Description: {self.description}")
 
     @classmethod
     def from_dict(cls, movie_dict: dict[str, str | int | float | list]):
@@ -110,7 +117,7 @@ class Showtime:
     def pretty_string(self, *, short = False, title_limit = 15):
         if not short:
             return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
-                f"{self.movie.short_title(title_limit)} {self.datetime.strftime('%Y %b %d %H:%M')}"
+                f"{self.movie.short_title(title_limit)} {self.datetime.strftime('%Y %b %d %H:%M')} "
                 f"(Screen: {self.screen}, Seats left: {self.max_attendees - self.attendees:03d}/{self.max_attendees} "
                 f"Lang: {self.language.title()})")
         else:
@@ -232,7 +239,7 @@ def add_movie():
             remove_movie(new_movie)
             print("New movie creation cancelled.")
             return
-    print("New movie created successfully.")
+    print("New movie created successfully.\nDon't forget to schedule showtimes for it as well!")
     return
 
 def remove_movie(movie: Movie):
@@ -305,11 +312,15 @@ def update_showtime(showtime):
     showtime.update_from_dict(updated_data)
     print(f"Updated showing: \n{showtime}")
 
-def list_showtimes(search_value: str | None = None) -> list:
+def list_showtimes(search_value: str | None = None, only_future: bool = False) -> list:
     """Lists showtimes. Ask_User flag determines whether function should prompt for search options."""
+    # Only_future flag ensures that only future showings are shown (this is for customer convenience).
     showtimes = list(Showtime.current_items.values())
     if not search_value:
-        return showtimes  # Return all showings.
+        if not only_future:
+            return showtimes
+        else:
+            return [showtime for showtime in showtimes if showtime.datetime > dt.datetime.now()]
     else:
         # Search through results. Evaluate search_value as datetime if possible; as title-string otherwise.
         filtered_showtimes = []
@@ -324,6 +335,8 @@ def list_showtimes(search_value: str | None = None) -> list:
             for item in showtimes:
                 if item.movie.title.lower() == search_value:
                     filtered_showtimes.append(item)
+    if only_future:
+        filtered_showtimes = [showtime for showtime in filtered_showtimes if showtime.datetime > dt.datetime.now()]
     if not filtered_showtimes:
         return [fail_string]
     return filtered_showtimes
@@ -332,7 +345,7 @@ def list_showtimes(search_value: str | None = None) -> list:
 def _prompt_for_movie_data() -> dict:
     new_movie = dict()
     new_movie["title"] = input("Movie title: ").strip().title()
-    new_movie["genre"] = input("Enter genre (space-separated if multiple): ").strip().split()
+    new_movie["genre"] = [genre.strip() for genre in input("Enter genre (comma-separated if multiple): ").strip().split(",")]
     new_movie["description"] = input("Enter movie description: ").strip()
     # Input duration and rating (must be type-checked).
     while True:

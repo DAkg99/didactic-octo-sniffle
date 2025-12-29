@@ -1,6 +1,7 @@
 """
     Tracks & presents seating data.
 """
+import os
 import datetime as dt
 
 def select_seats(showing) -> list | None:
@@ -54,8 +55,7 @@ def is_seat_available(seats: list[str | tuple], showing, user_reservation = None
 
 def render_map(seating_map):
     """Prints seat map with labels. Splits into parts if window is narrow. Doesn't print if too narrow."""
-    # terminal_width = next(iter(os.get_terminal_size()))
-    terminal_width = 120  # DEBUG
+    terminal_width = next(iter(os.get_terminal_size()))
     char_per_col = 3
     colum_count, row_count = len(seating_map), len(seating_map[1])
     seat_characters = "XR-" # Characters for Sold, Reserved, Empty seats represtively
