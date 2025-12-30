@@ -5,7 +5,7 @@
         "age": 50,
         "email": "test@email.com",
         "issued": "2025-12-29 21:41:29.444096",
-        "cost": 712.8000000000001,
+        "cost": 712.8,
         "seats": "4-5, 4-4, 4-3",
         "confirmed": true,
         "uid": "c6f96312"
@@ -16,7 +16,7 @@
         "age": 30,
         "email": "user@email.net",
         "issued": "2025-12-29 21:42:31.143274",
-        "cost": 302.40000000000003,
+        "cost": 302.4,
         "seats": "7-1, 7-0",
         "confirmed": true,
         "uid": "a255bcb8"
@@ -25,11 +25,22 @@
         "showtime_id": 3,
         "name": "Dino Fan",
         "age": 12,
-        "email": "dinosaurs@paleo.netdinosaurs@paleo.net",
+        "email": "dinosaurs@paleo.net",
         "issued": "2025-12-29 21:52:16.303894",
         "cost": 64.8,
         "seats": "0-0",
         "confirmed": true,
         "uid": "9713cebb"
+    },
+    {
+        "showtime_id": 2,
+        "name": "123",
+        "age": 123,
+        "email": "@.",
+        "issued": "2025-12-30 15:08:24.259020",
+        "cost": 64.8,
+        "seats": "0-0",
+        "confirmed": true,
+        "uid": "802e2624"
     }
 ]

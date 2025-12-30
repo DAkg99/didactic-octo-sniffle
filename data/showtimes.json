@@ -43,5 +43,14 @@
         "language": "english",
         "pricing_tier": 3,
         "uid": 5
+    },
+    {
+        "movie_id": "6751b907",
+        "datetime": "2030-01-01 01:01",
+        "screen": 123,
+        "attendees": 0,
+        "language": "qwe",
+        "pricing_tier": 1,
+        "uid": 6
     }
 ]

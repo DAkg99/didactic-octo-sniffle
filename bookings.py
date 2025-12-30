@@ -45,7 +45,7 @@ class Booking:
             book_dict["age"],
             book_dict["email"],
             dt.datetime.fromisoformat(book_dict["issued"]),
-            book_dict["cost"],
+            round(book_dict["cost"], 2),
             [tuple([int(value) for value in seat.split("-")]) for seat in book_dict["seats"].split(", ")],
             book_dict["confirmed"],
             book_dict.get("uid", '')
@@ -157,6 +157,8 @@ def list_customer_bookings(email: str) -> list:
     for booking in list(Booking.current_items.values()):
         if booking.email == email:
             booking_list.append(booking)
+    if not booking_list:
+        return [f"No registered bookings for {email}"]
     return booking_list
 
 def generate_ticket(booking_data: dict):

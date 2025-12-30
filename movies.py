@@ -9,17 +9,17 @@ from typing import ClassVar, Self
 
 from storage import random_uid_generator, validate_showtime
 
-@dataclass(frozen=True)
+@dataclass
 class Movie:
-    """Mostly immutable class for movies. Class tracks all current instances in a dict."""
+    """Class for movies which also tracks all current instances in a dict."""
     current_items: ClassVar[dict[str,Self]] = {}                  # CLASS VAR: Automatically self-populates.
     title: str
     genre: list[str] = field(compare=False)                       # Unhashable type (list)
     duration: dt.timedelta
     description: str
-    rating: float = field(compare=False)                          # Mutable (set by update_rating method)
-    uid: str = field(compare=False)                               # Mutable (set post init)
-    showtimes: list = field(default_factory=list, compare=False)  # Mutable (set by showtime_add/rem methods)
+    rating: float = field(compare=False)                          # Attribute subject to change.
+    uid: str
+    showtimes: list = field(default_factory=list, compare=False)  # Unhashable type (list)
 
     def __post_init__(self):
         # Generate UID if none provided.
@@ -36,6 +36,10 @@ class Movie:
           f"Rating: {self.rating:.2f}/5.00\n"
           f"Description: {self.description}")
 
+    @property
+    def editable_attribute_dict_keys(self) -> list:
+        return ["title", "genre", "duration", "description", "rating"]
+
     @classmethod
     def from_dict(cls, movie_dict: dict[str, str | int | float | list]):
         """Create instance from dictionary."""
@@ -49,7 +53,7 @@ class Movie:
             movie_dict["rating"],
             movie_dict["uid"])
 
-    def short_title(self, limit: int = 15):
+    def short_title(self, limit: int = 17):
         if limit <= 2:
             raise ValueError("Limit too low")
         if len(self.title) <= limit:
@@ -66,18 +70,13 @@ class Movie:
             "uid": self.uid
         }
 
-    def update_rating(self, new_rating: str):
-        while True:
-            try:
-                new_rating = float(new_rating)
-                break
-            except ValueError:
-                print("Error: Rating must be between 0 and 5.")
-                new_rating = input("Enter new value or (q) to cancel: ").lower().strip()
-                if new_rating == "q":
-                    return
-                continue
-        object.__setattr__(self, "rating",new_rating)
+    def update_from_dict(self, data_dict: dict):
+        """Updates all values except bookings"""
+        self.title = data_dict["title"]
+        self.genre = data_dict["genre"]
+        self.duration =dt.timedelta(minutes=(data_dict["duration"]))
+        self.description = data_dict["description"]
+        self.rating = data_dict["rating"]
 
     def showtime_add(self, showtime):
         self.showtimes.append(showtime)
@@ -114,7 +113,7 @@ class Showtime:
         self.max_attendees = self.seat_layout[0] * self.seat_layout[1]
         self.movie.showtime_add(self)
 
-    def pretty_string(self, *, short = False, title_limit = 15):
+    def pretty_string(self, *, short = False, title_limit = 17):
         if not short:
             return (f"{f'[{str(self.full).upper()}]' * int(self.full)}"  # [FULL] prefix if full
                 f"{self.movie.short_title(title_limit)} {self.datetime.strftime('%Y %b %d %H:%M')} "
@@ -216,7 +215,7 @@ class Showtime:
             raise ValueError("Too many seats! (Too many columns to represent with 2 digits (1-indexed))")
 
 
-# Movie functions
+# Movie functions----------------------------
 def load_movies(path: str) -> list[Movie]:
     """Returns movie database as list"""
     movies_raw_list = json.load(open(path+"movies.json"))
@@ -232,36 +231,56 @@ def save_movies(path: str) -> None:
 def add_movie():
     """Adds a new movie to the list of movies"""
     movie_data = _prompt_for_movie_data()
+    print("\nNew movie data:\n")
+    for key, value in movie_data.items():
+        print(f"{key} : {value}")  # Print data for confirmation
+    if input("\nConfirm new movie? (y/n): ").strip().lower() != "y":
+        print("\nMovie creation aborted.")
+        return
     new_movie = Movie.from_dict(movie_data)
     if _duplicate_checker(new_movie):
-        abort = input("This movie already exists. Abort? (y/n): ").strip().lower()
-        if abort != "y":
-            remove_movie(new_movie)
-            print("New movie creation cancelled.")
-            return
-    print("New movie created successfully.\nDon't forget to schedule showtimes for it as well!")
+        print("\nError: This movie already exists. Process aborted.")
+        remove_movie(new_movie, force=True)
+        return
+    print(f"\nNew movie created successfully:\n{new_movie.pretty_string()}\n\nDon't forget to schedule showtimes for it as well!")
     return
 
-def remove_movie(movie: Movie):
-    # Simply delete the movie if there are no showings.
-    if not movie.showtimes:
-        confirm = True
+def remove_movie(movie: Movie, force: bool = False):
+    """Remove movie. Will prompt user for confirmation if showtimes exist.
+    The 'force' flag disables confirmation prompt, and suppresses the 'success' print."""
+    if force:
+        pass  # Don't print anything if force flag is true.
     else:
-        print("WARNING: This movie has associated showtimes, which will be deleted alongside it. "
-              "This might affect your analytics.")
-        if any([(showing.datetime > dt.datetime.now() and showing.attendees != 0) for showing in movie.showtimes]):
-            print("WARNING: This movie has future showtimes which have already been booked. It is NOT recommended to "
-                  "retire this movie without refunding the customers first.")
-        confirm = (input("Retire movie? (y/n): ").lower().strip() == "y")
-    if confirm:
-        for showtime in movie.showtimes[::-1]:
-            remove_showtime(showtime, True)
-        Movie.current_items.pop(movie.uid)
-        print("Movie deleted.")
-    else:
-        print("Movie deletion aborted.")
+        print("\nSelected movie for removal:", movie.title)
+        if movie.showtimes:
+            print("WARNING: This movie has associated showtimes, which will be deleted alongside it. "
+                  "This might affect your analytics.")
+            if any([(showing.datetime > dt.datetime.now() and len(showing.bookings) != 0) for showing in movie.showtimes]):
+                print("WARNING: This movie has future showtimes which have already been booked. It is NOT recommended to "
+                      "retire this movie without refunding the customers first.")
 
-# Showtime functions
+        if input("\nRetire movie? (y/n): ").lower().strip() != "y":
+            print("\nMovie deletion aborted.")
+            return
+    for showtime in movie.showtimes[::-1]:
+        remove_showtime(showtime, True)
+    Movie.current_items.pop(movie.uid)
+    if not force:
+        print("\nMovie deleted.")
+
+def update_movie(movie: Movie):
+    updated_data = _prompt_for_updated_movie_data(movie)
+    print("\nUpdated movie data: ")
+    for key, value in updated_data.items():  # Print data for confirmation.
+        print(f"{key} : {value}")
+    if input("\nConfirm update? (y/n): ").strip().lower() != "y":
+        print("\nUpdate aborted.")
+        return
+    movie.update_from_dict(updated_data)
+    print(f"\nUpdated movie: \n{movie.pretty_string()}\n")
+    return
+
+# Showtime functions----------------------------
 def load_showtimes(path: str) -> list[Showtime]:
     """Loads showtime database file"""
     showtimes_raw_list = json.load(open(path + "showtimes.json"))
@@ -277,40 +296,56 @@ def save_showtimes(path: str) -> None:
 def schedule_showtime(movie: Movie):
     new_showtime_dict = _prompt_for_showtime_data(movie)
     if not validate_showtime(new_showtime_dict):
-        print("Showtime scheduling aborted due to conflict. ")
-        return False
+        print("\nShowtime scheduling aborted due to conflict. ")
+        return
+    print("\nNew showtime data:\n")
+    for key, value in new_showtime_dict.items():
+        print(f"{key} : {value} {bool(key == 'movie_id') * f'({movie.title})'}")  # Print data for confirmation
+    if input("\nConfirm new showtime? (y/n): ").strip().lower() != "y":
+        print("\nShowtime creation aborted.")
+        return
     Showtime.from_dict(new_showtime_dict)
-    print("New showtime scheduled successfully.")
-    return True
+    print("\nNew showtime scheduled successfully.")
 
 def remove_showtime(showtime: Showtime, force: bool = False):
-    """Remove showtime. Will prompt user for confirmation if bookings exist (unless force is true)."""
-    # Simply delete if forced to, or if there are no bookings to worry about.
-    if force or (len(showtime.bookings) == 0):
-        confirm = True
+    """Remove showtime. Will prompt user for confirmation if bookings exist.
+    The 'force' flag disables confirmation prompt, and suppresses the 'success' print."""
+    if force:
+        pass  # Don't print anything.
     else:
-        # There are bookings; check if this showing has already occurred or not.
-        if showtime.datetime > dt.datetime.now():
+        print("\nSelected:",showtime.pretty_string())  # Print selection for confirmation
+        if (len(showtime.bookings) != 0) and (showtime.datetime > dt.datetime.now()):
             print(f"There are active bookings for this showtime. Retiring the showtime will delete these bookings as well.\n"
                   f"It is NOT recommended you retire this showtime without refunding the customers first.")
-            confirm = (input("Retire showtime? (y/n): ").lower().strip() == "y")
-        else:
-            print(f"Retiring this showtime will discard its booking data.")
-            confirm = (input("Proceed? (y/n): ").lower().strip() == "y")
-    if not confirm:
-        print("Showtime deletion aborted.")
-    else:
-        for booking in showtime.bookings:
-            booking.remove_self()
-            del booking
-        showtime.remove_self()
-        del showtime
+        elif len(showtime.bookings) != 0:
+            print(f"Retiring this showtime will discard its historic booking data.")
+
+        if input("\nProceed? (y/n): ").lower().strip() != "y":
+            print("\nShowtime deletion aborted.")
+            return
+    for booking in showtime.bookings:
+        booking.remove_self()
+        del booking
+    showtime.remove_self()
+    del showtime
+    if not force:
+        print("\nShowtime deleted.")  # Don't print confirmation if force=True
 
 def update_showtime(showtime):
     """Prompt user for new data and update showtime accordingly."""
     updated_data = _prompt_for_updated_showtime_data(showtime)
+    print("\nUpdated showtime: ")
+    for key, value in updated_data.items():  # Print data for confirmation.
+        print(f"{key} : {value} {bool(key == 'movie_id') * f'({Movie.current_items.get(value, showtime.movie).title})'}")
+    if input("\nConfirm update? (y/n): ").strip().lower() != "y":
+        print("\nUpdate aborted.")
+        return
+    if not validate_showtime(updated_data):
+        print("\nShowtime scheduling aborted due to conflict. ")
+        return
     showtime.update_from_dict(updated_data)
-    print(f"Updated showing: \n{showtime}")
+    print(f"\nUpdated showing: \n{showtime.pretty_string()}")
+    return
 
 def list_showtimes(search_value: str | None = None, only_future: bool = False) -> list:
     """Lists showtimes. Ask_User flag determines whether function should prompt for search options."""
@@ -339,9 +374,11 @@ def list_showtimes(search_value: str | None = None, only_future: bool = False) -
         return [fail_string]
     return sorted(filtered_showtimes, key=lambda st: st.datetime)
 
-# Helper functions--------
+
+# Helper functions----------------------------
 def _prompt_for_movie_data() -> dict:
     new_movie = dict()
+    print("Enter details for new movie:")
     new_movie["title"] = input("Movie title: ").strip().title()
     new_movie["genre"] = [genre.strip() for genre in input("Enter genre (comma-separated if multiple): ").strip().split(",")]
     new_movie["description"] = input("Enter movie description: ").strip()
@@ -363,6 +400,7 @@ def _prompt_for_movie_data() -> dict:
     return new_movie
 
 def _prompt_for_showtime_data(movie) -> dict:
+    print("Enter details for new showtime: ")
     new_showtime = dict()
     new_showtime["attendees"] = 0
     new_showtime["movie_id"] = movie.uid
@@ -377,8 +415,12 @@ def _prompt_for_showtime_data(movie) -> dict:
     # Get pricing_tier
     while True:
         try:
-            new_showtime["pricing_tier"] = int(input("Enter price tier (usually a number from 1 to 5): "))
-            break
+            new_price_tier = int(input("Enter price tier: "))
+            if not (0 < new_price_tier < 6):
+                input("Price tier must be between 0 and 5.")
+            else:
+                new_showtime["pricing_tier"] = new_price_tier
+                break
         except (ValueError, TypeError, NameError):
             input("Invalid screen (must be an integer).")
     # Get datetime:
@@ -391,31 +433,71 @@ def _prompt_for_showtime_data(movie) -> dict:
             input("Invalid date/time format.")
     return new_showtime
 
+def _prompt_for_updated_movie_data(movie: Movie) -> dict:
+    print("Updating movie: ")
+    movie_data = movie.to_dict()
+    for key in movie.editable_attribute_dict_keys:
+        while True:
+            # Print current value of key for convenience.
+            print(f"\nCurrent {key.upper()} for movie: {movie_data.get(key)}")
+            if key == "genre":  # Remind user how to input genres before genre input prompt.
+                print("\n(Note: Multiple genres must be comma-separated.)")
+            new_val = input(f"Enter new {key} or leave blank to keep current: ").strip()
+            if new_val:
+                # Evaluate different cases to make sure the data is correct.
+                if key == "genre":
+                    new_val = [genre.strip() for genre in new_val.split(",")]
+                elif key == "duration":
+                    try:
+                        new_val = int(new_val)
+                    except (ValueError, TypeError):
+                        print("\nPlease enter an integer (e.g. 120).")
+                        continue
+                elif key == "rating":
+                    try:
+                        new_val = float(new_val)
+                    except (ValueError, TypeError):
+                        print("\nPlease enter a float (e.g. 3.4).")
+                        continue
+                movie_data[key] = new_val
+            break
+    return movie_data
+
 def _prompt_for_updated_showtime_data(showtime) -> dict:
+    print("Updating showtime:")
     showtime_data = showtime.to_dict()
     for key in showtime.editable_attribute_dict_keys:
         while True:
-            print(f"Current {key.replace("_", " ").replace("datetime", "date time").upper()} "
-                  f"for showing: {showtime_data.get(key)}")
+            # Print movies and their IDs for convenience.
+            if key == "movie_id":
+                print(f"\nMovie IDS:")
+                for movie in Movie.current_items.values():
+                    print(f"{movie.uid} : {movie.title}")
+            # Print current key value for convenience.
+            print(f"\nCurrent {key.replace("_", " ").replace("datetime", "date time").upper()} "
+                  f"for showing: {showtime_data.get(key)}"
+                  f"{bool(key == 'movie_id') * f'({showtime.movie.title})'}")  # ALso print movie if key is movie_id.
+            # Ask for new key value.
             new_val = input(f"Enter new {key} or leave blank to keep current: ").strip()
             if new_val:
-                if key == "datetime":
+                if key == "movie_id":
+                    if not Movie.current_items.get(new_val, None):
+                        print("\nNot a valid ID.")
+                        continue
+                elif key == "datetime":
                     try:
                         dt.datetime.strptime(new_val, "%Y-%m-%d %H:%M")
-                        showtime_data[key] = new_val
                     except (ValueError, TypeError):
-                        print("Please format the attribute attribute correctly (YYYY-MM-DD HH:MM).")
-                elif type(showtime_data[key]) == int:
+                        print("\nPlease format the attribute attribute correctly (YYYY-MM-DD HH:MM).")
+                        continue
+                elif type(showtime_data[key]) == int:  # For any key where the old value is int
                     try:
                         new_val = int(new_val)
-                        showtime_data[key] = new_val
                     except (ValueError, TypeError):
-                        print("Please enter an integer.")
-                else:
-                    showtime_data[key] = new_val
-                break
-            else:
-                break
+                        print("\nPlease enter an integer.")
+                        continue
+                showtime_data[key] = new_val
+            break
     return showtime_data
 
 def _duplicate_checker(test):

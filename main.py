@@ -15,7 +15,9 @@ from seating import is_seat_available
 
 # Theater name
 theater_name = "Testificate"
-# Theater data
+# Password to access admin menu
+admin_passcode = "123"
+# Pricing/Refund data
 pricing_data = {
     "pricing_tiers": {
         1: 60,
@@ -37,7 +39,6 @@ booking_refund_policy = {
     "film_proximity_limit_hours": 2   # Hours until movie when ticket becomes non-refundable.
 }
 
-admin_passcode = "123"
 
 # Database path
 data_path = "./data/"
@@ -51,8 +52,7 @@ for file_name in ["movies.json", "showtimes.json", "bookings.json"]:
     if not os.path.exists(data_path + file_name):
         with open(data_path + file_name, 'x') as new_file:
             new_file.write("[]")
-# Load date into memory
-storage.load_state(data_path)
+
 
 # Start Menu/
 # │
@@ -165,7 +165,7 @@ class MenuSelector:
 
 # Initialise menu selection instances
 start_screen = MenuSelector(
-    f"Please select a menu to use: ", [                         # Startup
+    f"{f'Welcome to {theater_name} Theater!'.center(next(iter(os.get_terminal_size())))}\nPlease select a menu to use:", [                         # Startup
         {"quit": "Quit Applet"},                                # EXIT
         {"main": "Customer Menu"},                              # 1.Submenu
         {"admin": "Administrative Menu"}])                      # 2.Submenu
@@ -186,6 +186,7 @@ admin_selector = MenuSelector(
         {"back": "[Exit]"},                                     # BACK
         {"add_movie": "Add a new movie"},                       # Action
         {"rem_movie": "Retire an existing movie"},              # Action
+        {"edit_movie": "Edit an existing movie"},               # Action
         {"add_showtime": "Schedule a new showing"},             # Action
         {"rem_showtime": "Retire an existing showtime"},        # Action
         {"edit_showtime": "Edit an existing showing"},          # Action
@@ -219,85 +220,105 @@ def start_menu():
             case "admin":
                 if getpass.getpass("Enter Passcode: ") != admin_passcode:
                     print("Invalid passcode.")
+                    pause_confirm()
                 else:
                     admin_menu()
             case _:
                 raise NotImplementedError
-        pause_confirm()
 
 def main_menu():
     """Main menu for customers."""
     while True:
         choice = main_selector.run()
         storage.load_state(data_path)
+        clear_terminal()
         match choice:
             case "back":
                 return
             case "imdb":
-                if movie := dynamic_select_movie("Select a movie to learn more about it: "):
-                    print(movie.pretty_string())
+                while True:
+                    if movie := dynamic_select_movie("Select a movie to learn more about it: "):
+                        clear_terminal()
+                        print(movie.pretty_string())
+                        pause_confirm()
+                        continue
+                    break
             case "schedule":
-                if (search_term := input("Enter date (YYYY-MM-DD) or title to search, or blank to view all: ").lower().strip()) != "q":
+                if (search_term := input("Enter date (YYYY-MM-DD) or title to search, or blank to view all showtimes: ").lower().strip()) != "q":
                     print_list(movies.list_showtimes(search_term, only_future=True))
+                    pause_confirm()
             case "new_book":
-                booking_process_handler()
-                storage.save_state(data_path)
+                if booking_process_handler():
+                    storage.save_state(data_path)
+                    pause_confirm()
             case "view_book":
-                if (search_email := input("Enter your email ('q' to go back): ").lower().strip()) != "q":
+                if (search_email := input("Enter the email address associated with your booking ('q' to go back): ").lower().strip()) != "q":
                     print_list(bookings.list_customer_bookings(search_email), True)
+                    pause_confirm()
             case "canc_book":
                 if (booking_id := input("Enter the booking ID you'd like to cancel: ").lower().strip()) != "q":
                     bookings.cancel_booking(booking_id, booking_refund_policy)
                     storage.save_state(data_path)
+                    pause_confirm()
             case "cont_book":
-                if (reserve_id := input("Enter code ('q' to go back): ").lower().strip()) != "q":
-                    cont_booking_action(reserve_id)
-                    storage.save_state(data_path)
+                if (reserve_id := input("Enter code to continue booking with ('q' to go back): ").lower().strip()) != "q":
+                    if cont_booking_action(reserve_id):
+                        storage.save_state(data_path)
+                        pause_confirm()
             case _:
                 raise NotImplementedError
-        pause_confirm()
-
 
 def admin_menu():
     """Main menu for admins."""
     while True:
         choice = admin_selector.run()
         storage.load_state(data_path)
+        clear_terminal()
         match choice:
             case "back":
                 return
             case "add_movie":
                 movies.add_movie()
                 storage.save_state(data_path)
+                pause_confirm()
             case "rem_movie":
                 if movie := dynamic_select_movie("Select a movie to retire:"):
                     movies.remove_movie(movie)
                     storage.save_state(data_path)
+                    pause_confirm()
+            case "edit_movie":
+                if movie := dynamic_select_movie("Select a movie to edit: "):
+                    movies.update_movie(movie)
+                    storage.save_state(data_path)
+                    pause_confirm()
             case "add_showtime":
                 if movie := dynamic_select_movie("Select a movie to schedule a new showing for: "):
                     movies.schedule_showtime(movie)
                     storage.save_state(data_path)
+                    pause_confirm()
             case "rem_showtime":
                 if showing := dynamic_select_showtime("Select a showing to retire: "):
                     movies.remove_showtime(showing)
                     storage.save_state(data_path)
+                    pause_confirm()
             case "edit_showtime":
                 if showing := dynamic_select_showtime("Select a showing to edit:"):
                     movies.update_showtime(showing)
                     storage.save_state(data_path)
+                    pause_confirm()
             case "reports":
                 admin_reports_menu()
             case "backups":
                 admin_backups_menu()
             case _:
                 raise NotImplementedError
-        pause_confirm()
 
 def admin_reports_menu():
     """Admin menu to view and export analytics"""
     while True:
         choice = admin_reports_selector.run()
         storage.load_state(data_path)
+        clear_terminal()
         match choice:
             case "back":
                 return
@@ -306,9 +327,11 @@ def admin_reports_menu():
                     movies_list = list(movies.Showtime.current_items.values())
                     bookings_list = list(bookings.Booking.current_items.values())
                     reports.export_report(filename, movies_list, bookings_list)
+                    pause_confirm()
             case "occupancy":
                 showtime_list = list(movies.Showtime.current_items.values())
                 print_dict(reports.occupancy_report(showtime_list))
+                pause_confirm()
             case "revenue":
                 bookings_list = list(bookings.Booking.current_items.values())
                 showtime_list = list(movies.Showtime.current_items.values())
@@ -322,39 +345,42 @@ def admin_reports_menu():
                         print("Error: Dates must be formatted as YYYY-MM-DD")
                         continue
                 print_dict(reports.revenue_summary(bookings_list, showtime_list, dates))
+                pause_confirm()
             case "top_movies":
                 print_list(reports.top_movies(list(movies.Showtime.current_items.values())), double_spaced=True)
+                pause_confirm()
             case _:
                 raise NotImplementedError
-        pause_confirm()
 
 def admin_backups_menu():
     """Admin menu to load/save backups"""
     while True:
         choice = admin_backups_selector.run()
         storage.load_state(data_path)
+        clear_terminal()
         match choice:
             case "back":
                 return
             case "save_backup":
                 storage.backup_state(backup_path)
+                pause_confirm()
             case "load_backup":
-                storage.load_backup(backup_path, data_path)
+                if storage.load_backup(backup_path, data_path):
+                    pause_confirm()
             case _:
                 raise NotImplementedError
-        pause_confirm()
 
 
 
 # Menu Helper Functions--------------------------------------------
 
-def booking_process_handler(reservation: bookings.Booking = None):
-    """Create a booking."""
+def booking_process_handler(reservation: bookings.Booking = None) -> bool:
+    """Create a booking. Returns bool depending on whether user cancelled process or not."""
     # Get seating and showing from 'reservation'; prompt the user if no reservation.
     if not (showing := dynamic_select_showtime(only_future=True) if not reservation else reservation.showtime):
-        return  # Showtime selection aborted by user
+        return False  # Showtime selection aborted by user
     if not (seats := seating.select_seats(showing) if not reservation else reservation.seats):
-        return  # Seat selection aborted by user
+        return False  # Seat selection aborted by user
     reservation = seating.reserve_seats(seats, showing, bookings.Booking) if not reservation else reservation
     # Do payment.
     if not bookings.payment(booking_data := bookings.new_booking(showing, seats, pricing_data)):
@@ -363,29 +389,30 @@ def booking_process_handler(reservation: bookings.Booking = None):
             # Tell user that they can continue booking later if their seats are still reserved.
             print(f"Seats reserved for {reserve_time_left:.01f} minutes.\n"
                   f"Use code to continue booking: {reservation.uid}")
-        return
+        return True
     elif not is_seat_available(seats, showing, reservation):
         print("Your payment has been cancelled.")
-        return  # User's seats are no longer available
+        return True # User's seats are no longer available
     print("Payment successful.")
     reservation.remove_self()  # Booking complete: delete reservation
     del reservation
     bookings.generate_ticket(booking_data)
+    return True
 
 
-def cont_booking_action(reserve_id: str):
+def cont_booking_action(reserve_id: str) -> bool:
     """Asks for reservation code; returns reservation (and refreshes its duration) if valid."""
     if (not reserve_id) or (reserve_id == "q"):
-        return  # Process aborted by user.
+        return False # Process aborted by user.
     reservation = bookings.Booking.current_items.get(reserve_id, None)
     if (not reservation) or reservation.confirmed:
         print("Invalid code!")
-        return  # No such reservation exists.
+        return True # No such reservation exists.
     elif reservation.minutes_since_issued >= reservation.max_reserve_mins:
         print("Code has expired!")
         reservation.remove_self()
         del reservation
-        return  # Reservation has expired (and now deleted).
+        return True # Reservation has expired (and now deleted).
     else:
         # Valid reservation: refresh its duration and continue booking process.
         seats, showing = reservation.seats, reservation.showtime
@@ -393,15 +420,17 @@ def cont_booking_action(reserve_id: str):
         del reservation
         refreshed_reservation = seating.reserve_seats(seats, showing, bookings.Booking, reserve_id)
         print(f"Continuing booking for {showing.pretty_string(short=True)}")
-        booking_process_handler(refreshed_reservation)
+        return booking_process_handler(refreshed_reservation)
 
 
 
 # General Purpose Functions---------------------
 
-def dynamic_select_movie(prompt: str) -> movies.Movie | None:
-    """Summon a menu where the user can pick a movie."""
-    temp_movie_dict = movies.Movie.current_items.copy()  # Cache it in case movies are edited during choice
+def dynamic_select_movie(prompt: str = "") -> movies.Movie | None:
+    """Wrapper function for dynamic movie selection. Returns movie object."""
+    if not prompt:
+        prompt = "Select a movie: "
+    temp_movie_dict = movies.Movie.current_items.copy()  # Cache data to make sure user choice is retuned accurately.
     user_choice = MenuSelector.dynamic_selector(
         prompt,
         [{key: value.title} for key, value in temp_movie_dict.items()]
@@ -411,10 +440,11 @@ def dynamic_select_movie(prompt: str) -> movies.Movie | None:
     return temp_movie_dict[user_choice]
 
 def dynamic_select_showtime(prompt: str = "", only_future: bool = False) -> movies.Showtime | None:
-    """Summon a menu where the user can pick a showtime."""
+    """Wrapper function for dynamic showtime selection. Returns showtime object."""
     if not prompt:
         prompt = "Select a scheduled showing: "
-    temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache it in case edited during choice
+    temp_showtime_dict = movies.Showtime.current_items.copy()  # Cache data to make sure user choice is retuned accurately.
+    # Whether to only display future showings ore not.
     if only_future:
         showtimes = [{key: value.pretty_string()} for key, value in temp_showtime_dict.items() if value.datetime > dt.datetime.now()]
     else:
@@ -478,8 +508,9 @@ def _text_padding_shortening(my_string: str, char_limit: int) -> str:
 
 # START
 def main():
+    storage.load_state(data_path)
     start_menu()
 
 if __name__=="__main__":
-    print(f"Welcome to {theater_name} Theater!")
+    print(f"Welcome to {theater_name} Theater!".center(next(iter(os.get_terminal_size()))))
     main()

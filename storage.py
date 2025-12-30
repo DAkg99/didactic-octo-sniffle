@@ -25,19 +25,22 @@ def random_uid_generator(existing_uids: Container, length: int = 8) -> str:
 
 
 def validate_showtime(new_showtime_data: dict):
+    """Check if given showtime dict conflicts with existing showtimes."""
     new_screen = new_showtime_data["screen"]
     new_start = dt.datetime.strptime(new_showtime_data["datetime"], "%Y-%m-%d %H:%M")
     new_end = new_start + movies.Movie.current_items.get(new_showtime_data["movie_id"]).duration
     for showtime in movies.Showtime.current_items.values():
-        if not showtime.screen == new_screen:
-            pass
+        if showtime.uid == new_showtime_data.get("uid", None):
+            pass  # Skip if same showtime (this only happens if an old showtime is being updated).
+        elif not showtime.screen == new_screen:
+            pass  # They're in different screens thus cannot be conflicting.
         elif new_start < showtime.datetime and not (new_end < showtime.datetime):
             # There exists a showing which begins before this new one ends.
-            print(f"New showing would conflict with:\n {showtime.pretty_string(short=True)}\nAborting...")
+            print(f"New showing would conflict with:\n{showtime.pretty_string(short=True)}")
             return False
         elif new_start >= showtime.datetime and not (new_start >= showtime.datetime + showtime.movie.duration):
             # New showing begins before an older one ends.
-            print(f"New showing would conflict with:\n {showtime.pretty_string(short=True)}\nAborting...")
+            print(f"New showing would conflict with:\n{showtime.pretty_string(short=True)}")
             return False
     return True
 
@@ -65,22 +68,32 @@ def backup_state(backup_path: str):
 
 def load_backup(backup_path: str, data_path: str):
     #  If possible, print most recent backup files for user convenience.
-    if files := [file.name for file in os.scandir(backup_path) if file.is_file()]:
+    if files := [file.name for file in os.scandir(backup_path) if file.is_file()][::-1]:
         print_count = 5
-        print(f"{print_count} most recent backup files: ")
-        for count, file_name in enumerate(files[::-1], 1):
+        print(f"\n{print_count} most recent backup files: ")
+        for count, file_name in enumerate(files, 1):
             print(file_name)
             if count > print_count:
                 break
     #  Get and process user input (filename). Load backup file data.
-    file_name = input("Enter backup file name: ").lower().strip()
+    print("\nWarning: Highly recommended that you make a new back-up before loading.")
+    file_name = input("Enter backup file name (blank for most recent) ('q' to go back): ").lower().strip()
+    if file_name == "q":
+        return False  # User aborted
+    if not file_name:
+        try:
+            file_name = files[0]  # Get most recent
+            print(f"Selected file: {file_name}")
+        except IndexError:
+            print("There are no existing back up files.")
+            return True
     if file_name[-5:] != ".json":
         file_name += ".json"
     if not os.path.exists(f"{backup_path}{file_name}"):
         print(f"No file called {file_name} exists in directory {backup_path}.")
-        return
-    with open(fullpath := f"{backup_path}{file_name}", "r") as imp_file:
-        data = json.load(imp_file)
+        return True
+    with open(fullpath := f"{backup_path}{file_name}", "r") as import_f:
+        data = json.load(import_f)
     #  Replace database files with backup data.
     with open(f"{data_path}movies.json", "w") as m_f:
         json.dump(data[movie_data_key], m_f, indent=4)
@@ -91,3 +104,4 @@ def load_backup(backup_path: str, data_path: str):
 
     load_state(data_path)
     print(f"Imported data from {fullpath}.")
+    return True
