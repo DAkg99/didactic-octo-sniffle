@@ -57,13 +57,15 @@ def revenue_summary(booking_list: list, showtime_list: list, period: list[dt.dat
 
 def top_movies(showtimes_list: list, limit: int = 5) -> list:
     movies_viewer_count = dict()
+    if not showtimes_list:
+        return ["There are no showings for any movie."]
     for showtime in showtimes_list:
-        if not movies_viewer_count.get(showtime.movie):
-            movies_viewer_count[showtime.movie] = 0
-        movies_viewer_count[showtime.movie] += showtime.attendees
-    movies_sorted = [movie for movie, count in sorted(movies_viewer_count.items(), key=lambda item: item[1], reverse=True)]
-    return_limit = len(movies_sorted) if len(movies_sorted) <= limit else limit
-    return movies_sorted[:return_limit]
+        if not movies_viewer_count.get(showtime.movie.uid):
+            movies_viewer_count[showtime.movie.uid] = 0
+        movies_viewer_count[showtime.movie.uid] += showtime.attendees
+    movie_ids_sorted = [movie_id for movie_id, count in sorted(movies_viewer_count.items(), key=lambda item: item[1], reverse=True)]
+    return_limit = len(movie_ids_sorted) if len(movie_ids_sorted) <= limit else limit
+    return [showtimes_list[0].movie.current_items.get(uid) for uid in movie_ids_sorted[:return_limit]]
 
 def export_report(filename: str, showtimes_list: list, booking_list: list):
     if os.path.exists(filename):
