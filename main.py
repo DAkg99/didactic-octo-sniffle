@@ -17,6 +17,10 @@ from seating import is_seat_available
 theater_name = "Testificate"
 # Password to access admin menu
 admin_passcode = "123"
+# Database path
+data_path = "./data/"
+# Backup path
+backup_path = "./backups/"
 # Pricing/Refund data
 pricing_data = {
     "pricing_tiers": {
@@ -40,10 +44,6 @@ booking_refund_policy = {
 }
 
 
-# Database path
-data_path = "./data/"
-# Backup path
-backup_path = "./backup/"
 # Create directories if absent
 os.makedirs(backup_path, exist_ok=True)
 os.makedirs(data_path, exist_ok=True)
